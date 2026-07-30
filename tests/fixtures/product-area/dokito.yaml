@@ -1,0 +1,11 @@
+version: 1
+id: product
+name: Product
+
+repositories:
+  web-app:
+    github: example/web-app
+  api:
+    github: example/api
+  website:
+    github: example/website

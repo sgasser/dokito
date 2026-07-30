@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/web/client.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.e2e.ts",
+    "tests/browser/server.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts"],
+  "include": [
+    "files",
+    "dependencies",
+    "unlisted",
+    "unresolved",
+    "exports",
+    "nsExports",
+    "types",
+    "nsTypes",
+    "enumMembers",
+    "namespaceMembers",
+    "duplicates",
+    "catalog",
+    "cycles"
+  ],
+  "treatConfigHintsAsErrors": true
+}

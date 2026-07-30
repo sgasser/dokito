@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dokito"
+  short_description: "Work safely across Dokito Markdown Areas"
+  default_prompt: "Use $dokito to discover or resolve the relevant Areas, work with their canonical files directly, and validate structured changes."

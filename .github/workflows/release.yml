@@ -1,0 +1,279 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Verify version tag
+        if: github.event_name == 'push'
+        run: |
+          package_version="$(jq -r .version package.json)"
+          test "$GITHUB_REF_NAME" = "v$package_version"
+
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run check
+
+      - name: Generated Web assets match their sources
+        run: git diff --exit-code
+
+      - run: bun run test:e2e
+
+  build-linux:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - run: bun install --frozen-lockfile
+
+      - name: Build Linux archives
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+
+          build_archive() {
+            platform="$1"
+            compile_target="$2"
+            package_dir="dist/release/package-$platform"
+            archive_path="$GITHUB_WORKSPACE/dist/release/dokito-$platform.tar.gz"
+
+            mkdir -p "$package_dir"
+            mkdir -p "$package_dir/licenses"
+            bun build ./src/cli/index.ts \
+              --compile \
+              --jsx-runtime=automatic \
+              --target="$compile_target" \
+              --outfile "$package_dir/dokito"
+            cp LICENSE "$package_dir/LICENSE"
+            cp src/web/fonts/*-LICENSE.txt "$package_dir/licenses"
+            tar -C "$package_dir" -czf \
+              "$archive_path" \
+              dokito LICENSE licenses
+          }
+
+          build_archive linux-arm64 bun-linux-arm64
+          build_archive linux-x64 bun-linux-x64-baseline
+
+          tar -C skills -czf \
+            "$GITHUB_WORKSPACE/dist/release/dokito-skill.tar.gz" \
+            dokito
+          cp install.sh "$GITHUB_WORKSPACE/dist/release/install-dokito.sh"
+          rm -rf dist/release/package-*
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-release-assets
+          path: |
+            dist/release/*.tar.gz
+            dist/release/install-dokito.sh
+          if-no-files-found: error
+          retention-days: 1
+
+  build-macos:
+    needs: verify
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - run: bun install --frozen-lockfile
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$APPLE_CERTIFICATE_P12_BASE64"
+          test -n "$APPLE_CERTIFICATE_PASSWORD"
+
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
+          keychain_path="$RUNNER_TEMP/dokito-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" |
+            base64 --decode > "$certificate_path"
+          security create-keychain \
+            -p "$keychain_password" \
+            "$keychain_path"
+          security set-keychain-settings \
+            -lut 21600 \
+            "$keychain_path"
+          security unlock-keychain \
+            -p "$keychain_password" \
+            "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path" >/dev/null
+          security list-keychains -d user -s "$keychain_path"
+          security find-identity \
+            -v \
+            -p codesigning \
+            "$keychain_path"
+
+          echo "KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
+          rm -f "$certificate_path"
+
+      - name: Build and sign macOS binaries
+        run: |
+          set -euo pipefail
+          signing_identity="Developer ID Application: Stefan Gasser (L9NV8H2289)"
+          mkdir -p dist/release
+
+          build_binary() {
+            platform="$1"
+            compile_target="$2"
+            package_dir="dist/release/package-$platform"
+            binary_path="$package_dir/dokito"
+
+            mkdir -p "$package_dir/licenses"
+            bun build ./src/cli/index.ts \
+              --compile \
+              --jsx-runtime=automatic \
+              --target="$compile_target" \
+              --outfile "$binary_path"
+            cp LICENSE "$package_dir/LICENSE"
+            cp src/web/fonts/*-LICENSE.txt "$package_dir/licenses"
+            chmod 755 "$binary_path"
+
+            codesign \
+              --force \
+              --options runtime \
+              --timestamp \
+              --entitlements .github/macos-entitlements.plist \
+              --keychain "$KEYCHAIN_PATH" \
+              --sign "$signing_identity" \
+              "$binary_path"
+            codesign --verify --strict --verbose=2 "$binary_path"
+          }
+
+          build_binary macos-arm64 bun-darwin-arm64
+          build_binary macos-x64 bun-darwin-x64-baseline
+
+      - name: Package and notarize macOS archives
+        env:
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$APPLE_NOTARY_KEY_P8_BASE64"
+          test -n "$APPLE_NOTARY_KEY_ID"
+          test -n "$APPLE_NOTARY_ISSUER_ID"
+
+          notary_key_path="$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+          printf '%s' "$APPLE_NOTARY_KEY_P8_BASE64" |
+            base64 --decode > "$notary_key_path"
+          chmod 600 "$notary_key_path"
+
+          for platform in macos-arm64 macos-x64; do
+            package_dir="$GITHUB_WORKSPACE/dist/release/package-$platform"
+            archive_path="$GITHUB_WORKSPACE/dist/release/dokito-$platform.zip"
+
+            (
+              cd "$package_dir"
+              zip -qry "$archive_path" dokito LICENSE licenses
+            )
+            xcrun notarytool submit "$archive_path" \
+              --key "$notary_key_path" \
+              --key-id "$APPLE_NOTARY_KEY_ID" \
+              --issuer "$APPLE_NOTARY_ISSUER_ID" \
+              --wait
+          done
+
+          rm -f "$notary_key_path"
+          rm -rf dist/release/package-*
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+          rm -f \
+            "$RUNNER_TEMP/developer-id.p12" \
+            "$RUNNER_TEMP"/AuthKey_*.p8
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-release-assets
+          path: dist/release/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs:
+      - build-linux
+      - build-macos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist/release
+          merge-multiple: true
+
+      - name: Create SHA-256 checksums
+        run: |
+          set -euo pipefail
+          cd dist/release
+          sha256sum -- ./*.tar.gz ./*.zip ./install-dokito.sh |
+            sed 's#  \./#  #' |
+            sort -k2 > SHA256SUMS
+
+      - name: Upload dry-run release bundle
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: dist/release
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Create GitHub release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_notes=".github/release-notes/$GITHUB_REF_NAME.md"
+          test -f "$release_notes"
+
+          gh release create "$GITHUB_REF_NAME" \
+            dist/release/*.tar.gz \
+            dist/release/*.zip \
+            dist/release/install-dokito.sh \
+            dist/release/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Dokito $GITHUB_REF_NAME" \
+            --notes-file "$release_notes"

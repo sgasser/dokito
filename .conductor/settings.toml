@@ -1,0 +1,15 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "bun install --frozen-lockfile"
+archive = "true"
+run_mode = "concurrent"
+
+[scripts.run.web]
+command = "bun ./src/cli/index.ts web --port \"$CONDUCTOR_PORT\""
+default = true
+icon = "globe"
+
+[scripts.run.check]
+command = "bun run check"
+icon = "test-tube"

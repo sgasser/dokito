@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run check
+      # check regenerates the Web assets, so any difference here means the
+      # generated files committed with the sources were stale.
+      - name: Generated Web assets match their sources
+        run: git diff --exit-code
+      - run: bun run test:e2e
+      - run: bun run build

@@ -1,0 +1,537 @@
+@import "tailwindcss" source("./");
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans:
+    Inter, ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  --color-ink: #1d2025;
+  --color-ink-soft: #5e6672;
+  --color-prose: #31353c;
+  /* Still secondary, but readable at the 10–12px sizes used for metadata. */
+  --color-muted: #68717e;
+  --color-line: #e3e6eb;
+  --color-line-strong: #d5dae1;
+  --color-canvas: #f7f8fa;
+  --color-panel: #ffffff;
+  --color-sidebar: #f1f3f6;
+  --color-surface-hover: #f5f6f8;
+  /* Two greys that look alike and mean different things: a control's track,
+     and the row the navigation is standing on. */
+  --color-rail: #edeff3;
+  --color-nav: #e4e7ee;
+  --color-accent: #5b6ff2;
+  --color-accent-dark: #3949be;
+  --color-accent-soft: #eef1ff;
+  --color-accent-line: #c7cff7;
+  --color-warning: #b87828;
+  --color-warning-soft: #fdf8f0;
+  --color-success: #2e8b68;
+  --color-danger: #c65353;
+
+  /* The interface reads at 13, documents at 15. Named sizes keep the two
+     scales apart and stop arbitrary pixel values spreading through the UI. */
+  /* Every 10px label in the design is a mono micro-label, so it earns a name.
+     The other loose sizes appear once or twice in unrelated places, where a
+     name would claim a shared meaning that is not there. */
+  --text-micro: 10px;
+  --text-meta: 10.5px;
+  --text-ui-xs: 11px;
+  --text-ui-sm: 12px;
+  --text-ui-md: 12.5px;
+  --text-ui: 13px;
+  --text-ui-lg: 14px;
+  --text-doc: 15px;
+  --text-doc--line-height: 1.62;
+  --text-head: 17px;
+  --text-head--line-height: 1.35;
+  --text-title: 26px;
+  --text-title--line-height: 1.2;
+
+  /* The design is desktop-only, so this ladder is ours. Each name says what
+     the width turns on; `lg:` would have meant 900px here while meaning
+     1024px everywhere else, and that mistake would be silent. */
+  --breakpoint-*: initial;
+  --breakpoint-roomy: 680px;
+  --breakpoint-rail: 900px;
+  --breakpoint-split: 1024px;
+  --breakpoint-full: 1180px;
+
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-dialog: 12px;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer base {
+  /* The page frame is a singleton, so it is described here rather than as a
+     class list a view could contradict. */
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    color-scheme: light;
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@layer components {
+  .dokito-palette,
+  .dokito-task-dialog {
+    margin: auto;
+    overflow: hidden;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-dialog);
+    background: var(--color-panel);
+    padding: 0;
+    color: var(--color-ink);
+  }
+
+  /* Positioned so the action panel can anchor to the frame it belongs to. */
+  .dokito-palette {
+    position: relative;
+    width: min(648px, calc(100vw - 32px));
+    max-height: 560px;
+    margin-block-start: 18vh;
+    box-shadow:
+      0 2px 4px rgb(29 32 37 / 0.06),
+      0 24px 64px rgb(29 32 37 / 0.22);
+  }
+
+  .dokito-task-dialog {
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(660px, calc(100dvh - 32px));
+    box-shadow:
+      0 2px 4px rgb(29 32 37 / 0.06),
+      0 28px 72px rgb(29 32 37 / 0.24);
+  }
+
+  .dokito-palette::backdrop,
+  .dokito-task-dialog::backdrop {
+    background: rgb(29 32 37 / 0.15);
+  }
+
+  /* A ring carrying a dot: the ring says which lane the work is in, the dot
+     says how far along it is. Empty ring is untouched, filled ring is closed. */
+  .status-marker {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--color-muted);
+    border-radius: 999px;
+  }
+
+  .status-marker::after {
+    width: 0;
+    height: 0;
+    border-radius: 999px;
+    content: "";
+  }
+
+  .status-marker[data-state="urgent"] {
+    border-color: var(--color-danger);
+  }
+
+  .status-marker[data-state="urgent"]::after {
+    width: 6px;
+    height: 6px;
+    background: var(--color-danger);
+  }
+
+  .status-marker[data-state="in_progress"],
+  .status-marker[data-state="open"] {
+    border-color: var(--color-accent);
+  }
+
+  .status-marker[data-state="in_progress"]::after,
+  .status-marker[data-state="open"]::after {
+    width: 6px;
+    height: 6px;
+    background: var(--color-accent);
+  }
+
+  .status-marker[data-state="waiting"],
+  .status-marker[data-state="someday"] {
+    border-style: dashed;
+  }
+
+  .status-marker[data-state="done"],
+  .status-marker[data-state="closed"] {
+    border-color: var(--color-success);
+  }
+
+  .status-marker[data-state="done"]::after,
+  .status-marker[data-state="closed"]::after {
+    width: 7px;
+    height: 7px;
+    background: var(--color-success);
+  }
+
+  .status-marker[data-state="cancelled"] {
+    border-color: var(--color-line-strong);
+  }
+
+  .status-marker[data-state="cancelled"]::after {
+    width: 7px;
+    height: 7px;
+    background: var(--color-line-strong);
+  }
+
+  .prose {
+    color: var(--color-prose);
+    font-family: var(--font-sans);
+    font-size: var(--text-doc);
+    line-height: 1.62;
+  }
+
+  /* Spacing hangs below each block, as in the design, so a heading owns the
+     gap to the text it introduces rather than inheriting it from its sibling. */
+  .prose > * {
+    margin-block-end: --spacing(3.5);
+  }
+
+  .prose > :last-child {
+    margin-block-end: 0;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: var(--font-weight-semibold);
+    text-wrap: pretty;
+  }
+
+  .prose h1 {
+    font-size: var(--text-title);
+    font-weight: 640;
+    letter-spacing: -0.026em;
+  }
+
+  .prose > h2 {
+    margin-block: --spacing(8.5) --spacing(2.5);
+    font-size: var(--text-head);
+    font-weight: 620;
+    letter-spacing: -0.018em;
+  }
+
+  .prose > h3 {
+    margin-block: --spacing(6) --spacing(2);
+    font-size: 14.5px;
+    letter-spacing: -0.012em;
+  }
+
+  .prose > h4,
+  .prose > h5,
+  .prose > h6 {
+    margin-block: --spacing(5) --spacing(2);
+    font-size: var(--text-ui);
+  }
+
+  .prose > :first-child {
+    margin-block-start: 0;
+  }
+
+  .prose p {
+    text-wrap: pretty;
+  }
+
+  .prose a {
+    color: var(--color-accent-dark);
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(
+      in srgb,
+      var(--color-accent) 35%,
+      transparent
+    );
+    text-underline-offset: 3px;
+  }
+
+  .prose a:hover {
+    text-decoration-color: var(--color-accent);
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-inline-start: 2px;
+    list-style: none;
+  }
+
+  .prose ol {
+    counter-reset: prose-item;
+  }
+
+  /* The marker is positioned, not laid out: a flex list item would turn every
+     inline element inside it — each `code` span — into its own flex item and
+     tear the sentence apart. */
+  .prose li {
+    position: relative;
+    margin-block-end: --spacing(2);
+    padding-inline-start: 15px;
+  }
+
+  .prose ul > li::before {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 9px;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-muted);
+    content: "";
+  }
+
+  .prose ol > li {
+    counter-increment: prose-item;
+    padding-inline-start: 22px;
+  }
+
+  .prose ol > li::before {
+    position: absolute;
+    inset-inline-start: 0;
+    color: var(--color-muted);
+    content: counter(prose-item) ".";
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prose li:last-child {
+    margin-block-end: 0;
+  }
+
+  .prose strong {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .prose blockquote {
+    border-inline-start: 2px solid var(--color-line-strong);
+    padding-inline-start: --spacing(3.5);
+    color: var(--color-ink-soft);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  .prose > blockquote,
+  .prose > pre {
+    margin-block-end: --spacing(4);
+  }
+
+  .prose code {
+    border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+    border-radius: var(--radius-control);
+    background: var(--color-sidebar);
+    padding: 0.1em 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    white-space: nowrap;
+  }
+
+  .prose pre {
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+    background: var(--color-canvas);
+    padding: --spacing(3.5);
+    line-height: 1.6;
+  }
+
+  .prose pre code {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    font-size: var(--text-ui-sm);
+    /* A block keeps its own line breaks; only an inline token stays whole. */
+    white-space: inherit;
+  }
+
+  /* A table is data: the head names the columns, the rules separate rows, and
+     nothing else competes with the numbers. */
+  .prose table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: var(--text-ui-lg);
+    line-height: 1.5;
+  }
+
+  .prose thead {
+    border-block-end: 1px solid var(--color-line-strong);
+  }
+
+  /* A column that declared its alignment in the Markdown carries an inline
+     style, which wins over this default on its own. */
+  .prose th {
+    padding: 0 --spacing(3) --spacing(1.5) 0;
+    color: var(--color-ink);
+    font-weight: 600;
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .prose td {
+    padding: --spacing(1.5) --spacing(3) --spacing(1.5) 0;
+    border-block-end: 1px solid var(--color-line);
+    vertical-align: baseline;
+  }
+
+  .prose th:last-child,
+  .prose td:last-child {
+    padding-inline-end: 0;
+  }
+
+  .prose tbody tr:last-child td {
+    border-block-end: 0;
+  }
+
+  /* Footnotes are an appendix, not part of the argument. Their heading is
+     already screen-reader-only, so the rule above the list is what marks it. */
+  .prose .footnotes {
+    margin-block-start: --spacing(8);
+    border-block-start: 1px solid var(--color-line);
+    padding-block-start: --spacing(3);
+    color: var(--color-ink-soft);
+    font-size: 14.5px;
+  }
+
+  .prose .footnotes ol {
+    margin-block-start: --spacing(2);
+  }
+
+  .prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-panel);
+  }
+
+  .prose hr {
+    border: 0;
+    border-block-start: 1px solid
+      color-mix(in srgb, var(--color-ink) 10%, transparent);
+  }
+
+  .prose .contains-task-list {
+    padding-inline-start: 0;
+  }
+
+  .prose .task-list-item {
+    padding-inline-start: 0;
+  }
+
+  .prose .task-list-item::before {
+    display: none;
+  }
+
+  .prose .task-list-item input {
+    width: --spacing(4);
+    height: --spacing(4);
+    margin-inline-end: --spacing(1.5);
+    accent-color: var(--color-accent);
+  }
+
+  .project-body-prose {
+    font-size: 16px;
+  }
+
+  .project-body-prose > h2 {
+    margin-block: 22px 9px;
+    font-size: 17px;
+    letter-spacing: -0.016em;
+  }
+
+  .project-body-prose > h3 {
+    margin-block: 22px 9px;
+    font-size: 17px;
+    letter-spacing: -0.016em;
+  }
+
+  .project-body-prose > p {
+    margin-block-end: 14px;
+  }
+
+  .project-body-prose > pre {
+    margin-block-end: 14px;
+    padding: 12px 13px;
+  }
+
+  .project-body-prose > pre code {
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  @media (width >= 900px) {
+    .project-body-prose {
+      font-size: 14.5px;
+    }
+
+    .project-body-prose > h2,
+    .project-body-prose > h3 {
+      margin-block: 24px 9px;
+      font-size: 15.5px;
+    }
+
+    .project-body-prose > p {
+      margin-block-end: 13px;
+    }
+
+    .project-body-prose > pre code {
+      font-size: 11.5px;
+      line-height: 1.65;
+    }
+  }
+}
+
+@media (width < 900px) {
+  [data-view="project"] > [data-shell-navigation] {
+    display: none;
+  }
+
+  [data-view="project"] > #main-content {
+    padding-bottom: 0;
+  }
+}

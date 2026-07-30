@@ -1,0 +1,302 @@
+import packageJson from "../../package.json";
+import { listAreas, registerExistingArea } from "../core/areas";
+import { context } from "../core/context";
+import { DokitoError } from "../core/error";
+import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
+import { createUlid } from "../core/ulid";
+import { validateArea } from "../core/validate";
+import { startWebServer } from "../web/server";
+import { assertOptions, type GlobalOptions, onePositional } from "./options";
+import { printJson, success } from "./output";
+
+const VERSION = packageJson.version;
+
+function usage(): string {
+  return `Dokito ${VERSION}
+
+Usage:
+  dokito [--json] [--config <path>] <command>
+
+Commands:
+  register <area-path> [--cwd <path>]
+  areas
+  projects
+  tasks
+  context [--raw] [--cwd <path>]
+  validate [--cwd <path>]
+  id
+  web [--port <port>]
+
+Global options:
+  --json           Print structured JSON
+  --config <path>  Use another local config file
+  --version        Print the version
+  --help           Print help
+
+Command options:
+  --cwd <path>     Resolve the Area and Repository from another directory
+`;
+}
+
+function areasHuman(result: Awaited<ReturnType<typeof listAreas>>): string {
+  const areas =
+    result.areas.length === 0
+      ? [
+          "No Areas registered.",
+          "Link the bundled skill and ask your agent to create an Area, then run 'dokito register <area-path>'.",
+        ]
+      : [
+          `Registered Areas: ${result.areas.length}`,
+          ...result.areas.map((area) =>
+            area.available
+              ? `- ${area.id}: ${area.name}  ${area.path}  (${area.repositoryCount} Repositories)`
+              : `- ${area.id}: unavailable  ${area.path}  [${area.error.code}] ${area.error.message}`,
+          ),
+        ];
+  return [...areas, `Config: ${result.configPath}`].join("\n");
+}
+
+function details(values: Array<string | undefined>): string {
+  const present = values.filter(
+    (value): value is string => value !== undefined,
+  );
+  return present.length > 0 ? `  ${present.join("  ")}` : "";
+}
+
+function inventoryHeader(
+  collection: "Projects" | "Tasks",
+  count: number,
+  areaCount: number,
+): string {
+  return `${collection}: ${count} across ${areaCount} ${
+    areaCount === 1 ? "Area" : "Areas"
+  }`;
+}
+
+function projectsHuman(
+  result: Awaited<ReturnType<typeof listRegisteredProjects>>,
+): string {
+  return [
+    inventoryHeader("Projects", result.projects.length, result.areaCount),
+    ...result.projects.map(
+      (project) =>
+        `- [${project.status}] ${project.area}/${project.id}: ${
+          project.title
+        }${details([
+          project.due ? `due ${project.due}` : undefined,
+          project.repositories.length > 0
+            ? `repositories ${project.repositories.join(", ")}`
+            : undefined,
+        ])}`,
+    ),
+  ].join("\n");
+}
+
+function tasksHuman(
+  result: Awaited<ReturnType<typeof listRegisteredTasks>>,
+): string {
+  return [
+    inventoryHeader("Tasks", result.tasks.length, result.areaCount),
+    ...result.tasks.map(
+      (task) =>
+        `- [${task.status}] ${task.area}/${task.id}: ${task.title}${details([
+          task.priority ? `priority ${task.priority}` : undefined,
+          task.due ? `due ${task.due}` : undefined,
+          task.project ? `project ${task.project}` : undefined,
+          task.repository ? `repository ${task.repository}` : undefined,
+        ])}`,
+    ),
+  ].join("\n");
+}
+
+function contextHuman(result: Awaited<ReturnType<typeof context>>): string {
+  return [
+    `Area: ${result.area}  ${result.areaRoot}`,
+    ...(result.repository ? [`Repository: ${result.repository}`] : []),
+    `Projects: ${result.projects.count}  ${result.projects.path}`,
+    `Resources: ${result.resources.count}  ${result.resources.path}`,
+    `Tasks: ${result.tasks.count}  ${result.tasks.path}`,
+    "",
+    result.context,
+  ].join("\n");
+}
+
+function writeWarnings(json: boolean, warnings: readonly string[]): void {
+  if (!json) {
+    for (const warning of warnings) {
+      process.stderr.write(`Warning: ${warning}\n`);
+    }
+  }
+}
+
+export async function runCli(global: GlobalOptions): Promise<void> {
+  if (global.version) {
+    success(global.json, { version: VERSION }, VERSION);
+    return;
+  }
+  if (global.help) {
+    process.stdout.write(usage());
+    return;
+  }
+  if (global.positionals.length === 0) {
+    process.stdout.write(usage());
+    return;
+  }
+
+  const [command, ...args] = global.positionals;
+  if (!command) {
+    throw new DokitoError("invalid_usage", "Missing command.");
+  }
+
+  if (command === "register") {
+    assertOptions(global, ["cwd"]);
+    const target = onePositional(args, "Area path");
+    const result = await registerExistingArea({
+      cwd: global.cwd,
+      target,
+      configPath: global.configPath,
+    });
+    success(
+      global.json,
+      result,
+      result.changed
+        ? `Registered Area ${result.area} at ${result.path}`
+        : `Area ${result.area} is already registered at ${result.path}`,
+    );
+    return;
+  }
+
+  if (command === "areas") {
+    assertOptions(global, []);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "areas accepts no arguments.");
+    }
+    const result = await listAreas({ configPath: global.configPath });
+    success(global.json, result, areasHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "projects") {
+    assertOptions(global, []);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "projects accepts no arguments.");
+    }
+    const result = await listRegisteredProjects({
+      configPath: global.configPath,
+    });
+    success(global.json, result, projectsHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "tasks") {
+    assertOptions(global, []);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
+    }
+    const result = await listRegisteredTasks({
+      configPath: global.configPath,
+    });
+    success(global.json, result, tasksHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "context") {
+    assertOptions(global, ["raw", "cwd"]);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "context accepts no arguments.");
+    }
+    const raw = global.booleans.has("raw");
+    if (raw && global.json) {
+      throw new DokitoError(
+        "invalid_usage",
+        "Options --raw and --json cannot be combined.",
+      );
+    }
+    const result = await context({
+      cwd: global.cwd,
+      configPath: global.configPath,
+    });
+    if (global.json) {
+      printJson({ ok: true, data: result });
+    } else {
+      process.stdout.write(raw ? result.context : contextHuman(result));
+      writeWarnings(false, result.warnings);
+    }
+    return;
+  }
+
+  if (command === "validate") {
+    assertOptions(global, ["cwd"]);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "validate accepts no arguments.");
+    }
+    const result = await validateArea({
+      cwd: global.cwd,
+      configPath: global.configPath,
+    });
+    success(
+      global.json,
+      result,
+      [
+        `Validated Area ${result.area}`,
+        `  Context: ${result.context.bytes} bytes, ${result.context.state}`,
+        `  Projects: ${result.projects.count}`,
+        `  Resources: ${result.resources.count}`,
+        `  Tasks: ${result.tasks.count}`,
+      ].join("\n"),
+    );
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "id") {
+    assertOptions(global, []);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "id accepts no arguments.");
+    }
+    const id = createUlid();
+    success(global.json, { id }, id);
+    return;
+  }
+
+  if (command === "web") {
+    assertOptions(global, ["port"]);
+    if (args.length > 0) {
+      throw new DokitoError("invalid_usage", "web accepts no arguments.");
+    }
+    const portValue = global.values.get("port");
+    const port = portValue === undefined ? undefined : Number(portValue);
+    if (
+      port !== undefined &&
+      (!Number.isInteger(port) || port < 1 || port > 65_535)
+    ) {
+      throw new DokitoError(
+        "port_invalid",
+        "Web port must be an integer between 1 and 65535.",
+      );
+    }
+    const server = await startWebServer({
+      configPath: global.configPath,
+      ...(port !== undefined ? { port } : {}),
+    });
+    const result = {
+      hostname: server.hostname,
+      port: server.port,
+      url: server.url.toString(),
+      reused: server.reused,
+    };
+    success(
+      global.json,
+      result,
+      result.reused
+        ? `Dokito Web is already running at ${result.url}`
+        : `Dokito Web: ${result.url}`,
+    );
+    return;
+  }
+
+  throw new DokitoError("unknown_command", `Unknown command: ${command}`);
+}

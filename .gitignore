@@ -1,0 +1,13 @@
+.DS_Store
+.*.bun-build
+node_modules/
+dist/
+coverage/
+output/
+tmp-scratch/
+
+# playwright-cli scratch output
+.playwright-cli/
+
+# agent workspace scratch
+.context/
