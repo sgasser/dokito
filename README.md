@@ -106,7 +106,7 @@ Every Project, Resource, and Task is one Markdown file with a short YAML
 header:
 
 ```text
-acme-cloud/
+acme-cloud-area/
 ├── dokito.yaml     # Area id and name, plus any connected Repositories
 ├── context.md      # what this Area is and what matters now
 ├── projects/
@@ -151,7 +151,7 @@ of them, from any directory:
 ```console
 $ dokito areas
 Registered Areas: 3
-- acme-cloud: Acme Cloud  /Users/example/Work/acme-cloud  (3 Repositories)
+- acme-cloud: Acme Cloud  /Users/example/Work/acme-cloud-area  (3 Repositories)
 - northwind: Northwind  /Users/example/Work/northwind  (0 Repositories)
 - personal: Personal  /Users/example/Work/personal  (0 Repositories)
 Config: /Users/example/.config/dokito/config.yaml
