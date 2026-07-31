@@ -9,6 +9,31 @@ Dokito is early-stage. External contributions are currently limited to:
 Feature PRs, new integrations, data-model changes, dependency changes, and
 unrelated refactors are not accepted for now.
 
+## Local setup
+
+You need [Git](https://git-scm.com/) and [Bun](https://bun.sh/) on macOS or
+Linux.
+
+```bash
+git clone https://github.com/sgasser/dokito.git
+cd dokito
+bun install --frozen-lockfile
+bun run build
+```
+
+To use the checkout as your installed Dokito, link the binary and the skill,
+and keep the checkout at the same path:
+
+```bash
+mkdir -p "$HOME/.local/bin" "$HOME/.agents/skills" "$HOME/.claude/skills"
+ln -s "$PWD/dist/dokito" "$HOME/.local/bin/dokito"
+ln -s "$PWD/skills/dokito" "$HOME/.agents/skills/dokito"   # Codex
+ln -s "$PWD/skills/dokito" "$HOME/.claude/skills/dokito"   # Claude Code
+```
+
+With `$HOME/.local/bin` on your `PATH`, `dokito --version` reports the build.
+Start a new agent session after linking the skill.
+
 ## Fix workflow
 
 1. Include the affected command, reproduction steps, expected result, and
