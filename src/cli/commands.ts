@@ -5,6 +5,13 @@ import { DokitoError } from "../core/error";
 import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
+import {
+  childWebRuntime,
+  startWebBackground,
+  stopWebBackground,
+  webStatus,
+  writeChildWebRuntimeState,
+} from "../web/process";
 import { startWebServer } from "../web/server";
 import { assertOptions, type GlobalOptions, onePositional } from "./options";
 import { printJson, success } from "./output";
@@ -26,6 +33,9 @@ Commands:
   validate [--cwd <path>]
   id
   web [--port <port>]
+  web start [--port <port>]
+  web status
+  web stop
 
 Global options:
   --json           Print structured JSON
@@ -127,6 +137,21 @@ function writeWarnings(json: boolean, warnings: readonly string[]): void {
       process.stderr.write(`Warning: ${warning}\n`);
     }
   }
+}
+
+function webPort(global: GlobalOptions): number | undefined {
+  const portValue = global.values.get("port");
+  const port = portValue === undefined ? undefined : Number(portValue);
+  if (
+    port !== undefined &&
+    (!Number.isInteger(port) || port < 1 || port > 65_535)
+  ) {
+    throw new DokitoError(
+      "port_invalid",
+      "Web port must be an integer between 1 and 65535.",
+    );
+  }
+  return port;
 }
 
 export async function runCli(global: GlobalOptions): Promise<void> {
@@ -263,25 +288,84 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   }
 
   if (command === "web") {
+    const subcommand = args[0];
+    if (subcommand === "start") {
+      assertOptions(global, ["port"]);
+      if (args.length !== 1) {
+        throw new DokitoError(
+          "invalid_usage",
+          "web start accepts no additional arguments.",
+        );
+      }
+      const result = await startWebBackground(
+        global.configPath,
+        webPort(global),
+      );
+      success(
+        global.json,
+        result,
+        result.reused
+          ? `Dokito Web is already running at ${result.url}`
+          : `Dokito Web started at ${result.url}`,
+      );
+      return;
+    }
+    if (subcommand === "status") {
+      assertOptions(global, []);
+      if (args.length !== 1) {
+        throw new DokitoError(
+          "invalid_usage",
+          "web status accepts no additional arguments.",
+        );
+      }
+      const result = await webStatus(global.configPath);
+      success(
+        global.json,
+        result,
+        result.running
+          ? `Dokito Web is running at ${result.url}`
+          : "Dokito Web is stopped.",
+      );
+      return;
+    }
+    if (subcommand === "stop") {
+      assertOptions(global, []);
+      if (args.length !== 1) {
+        throw new DokitoError(
+          "invalid_usage",
+          "web stop accepts no additional arguments.",
+        );
+      }
+      const result = await stopWebBackground(global.configPath);
+      success(global.json, result, "Dokito Web is stopped.");
+      return;
+    }
     assertOptions(global, ["port"]);
     if (args.length > 0) {
-      throw new DokitoError("invalid_usage", "web accepts no arguments.");
-    }
-    const portValue = global.values.get("port");
-    const port = portValue === undefined ? undefined : Number(portValue);
-    if (
-      port !== undefined &&
-      (!Number.isInteger(port) || port < 1 || port > 65_535)
-    ) {
       throw new DokitoError(
-        "port_invalid",
-        "Web port must be an integer between 1 and 65535.",
+        "invalid_usage",
+        `Unknown web command: ${subcommand}`,
       );
     }
+    const port = webPort(global);
+    const childRuntime = childWebRuntime();
     const server = await startWebServer({
       configPath: global.configPath,
       ...(port !== undefined ? { port } : {}),
+      ...(childRuntime ? { runtimeId: childRuntime } : {}),
     });
+    if (childRuntime) {
+      try {
+        await writeChildWebRuntimeState(
+          global.configPath,
+          server.port,
+          childRuntime,
+        );
+      } catch (error) {
+        server.server?.stop(true);
+        throw error;
+      }
+    }
     const result = {
       hostname: server.hostname,
       port: server.port,

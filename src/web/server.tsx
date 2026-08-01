@@ -64,6 +64,8 @@ const NOT_FOUND_CODES = new Set([
 export interface WebServerInput {
   configPath: string;
   port?: number;
+  /** Identifies a CLI-managed detached runtime. Foreground servers omit it. */
+  runtimeId?: string;
   /** Optional snapshot factory for embedding and request-path tests. */
   workspaceStore?: WorkspaceStore;
 }
@@ -93,6 +95,14 @@ type WebServerProbe = (
   port: number,
   instanceId: string,
 ) => Promise<boolean>;
+
+interface WebHealth {
+  service: "dokito-web";
+  protocolVersion: number;
+  instanceId: string;
+  runtimeId?: string;
+  pid?: number;
+}
 
 export interface WebServerResult {
   hostname: string;
@@ -273,28 +283,48 @@ function webErrorStatus(error: DokitoError): number {
   return 500;
 }
 
-async function probeDokitoWeb(
+export async function readWebHealth(
   hostname: string,
   port: number,
-  instanceId: string,
-): Promise<boolean> {
+): Promise<WebHealth | null> {
   try {
     const response = await fetch(`http://${hostname}:${port}${HEALTH_PATH}`, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(500),
     });
     if (!response.ok) {
-      return false;
+      return null;
     }
     const body = (await response.json()) as Record<string, unknown>;
-    return (
-      body.service === HEALTH_SERVICE &&
-      body.protocolVersion === HEALTH_PROTOCOL_VERSION &&
-      body.instanceId === instanceId
-    );
+    if (
+      body.service !== HEALTH_SERVICE ||
+      body.protocolVersion !== HEALTH_PROTOCOL_VERSION ||
+      typeof body.instanceId !== "string"
+    ) {
+      return null;
+    }
+    return {
+      service: HEALTH_SERVICE,
+      protocolVersion: HEALTH_PROTOCOL_VERSION,
+      instanceId: body.instanceId,
+      ...(typeof body.runtimeId === "string"
+        ? { runtimeId: body.runtimeId }
+        : {}),
+      ...(typeof body.pid === "number" && Number.isInteger(body.pid)
+        ? { pid: body.pid }
+        : {}),
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+async function probeDokitoWeb(
+  hostname: string,
+  port: number,
+  instanceId: string,
+): Promise<boolean> {
+  return (await readWebHealth(hostname, port))?.instanceId === instanceId;
 }
 
 /**
@@ -417,6 +447,9 @@ function createWebApp(input: Omit<WebServerInput, "port">): Hono<WebEnv> {
         service: HEALTH_SERVICE,
         protocolVersion: HEALTH_PROTOCOL_VERSION,
         instanceId,
+        ...(input.runtimeId
+          ? { runtimeId: input.runtimeId, pid: process.pid }
+          : {}),
       },
       200,
     ),
@@ -633,13 +666,17 @@ export async function startWebServer(
   const instanceId = webInstanceId(input.configPath);
   const fetch = createWebRequestHandler({
     configPath: input.configPath,
+    ...(input.runtimeId ? { runtimeId: input.runtimeId } : {}),
     ...(input.workspaceStore ? { workspaceStore: input.workspaceStore } : {}),
   });
 
   let lastError: unknown;
   const attemptedPorts: number[] = [];
   for (const port of ports) {
-    if (await probeServer(WEB_HOSTNAME, port, instanceId)) {
+    if (
+      input.runtimeId === undefined &&
+      (await probeServer(WEB_HOSTNAME, port, instanceId))
+    ) {
       return {
         hostname: WEB_HOSTNAME,
         port,

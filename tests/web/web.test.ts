@@ -235,6 +235,24 @@ describe("Web", () => {
     expect(healthResponse.headers.get("x-dokito-web")).toBe("2");
   });
 
+  test("identifies a managed runtime in its health response", async () => {
+    workspace = await createTestWorkspace();
+    const request = createWebRequestHandler({
+      configPath: workspace.configPath,
+      runtimeId: "test-runtime",
+    });
+
+    const response = await request(new Request("http://127.0.0.1/health"));
+
+    expect(await response.json()).toEqual({
+      service: "dokito-web",
+      protocolVersion: 2,
+      instanceId: webInstanceId(workspace.configPath),
+      runtimeId: "test-runtime",
+      pid: process.pid,
+    });
+  });
+
   test("maps invalid query input and missing resources to HTTP semantics", async () => {
     workspace = await createTestWorkspace();
     await registerTestArea({

@@ -18,6 +18,7 @@
     "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "test": "bun test tests",
+    "test:binary": "DOKITO_TEST_BINARY=./dist/dokito bun test tests/cli/web-process.test.ts",
     "test:e2e": "bun run build:web && playwright test",
     "typecheck": "tsc --noEmit"
   },
