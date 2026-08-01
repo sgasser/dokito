@@ -265,9 +265,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release_notes=".github/release-notes/$GITHUB_REF_NAME.md"
-          test -f "$release_notes"
-
           gh release create "$GITHUB_REF_NAME" \
             dist/release/*.tar.gz \
             dist/release/*.zip \
@@ -276,4 +273,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "Dokito $GITHUB_REF_NAME" \
-            --notes-file "$release_notes"
+            --generate-notes
