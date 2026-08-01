@@ -1,8 +1,12 @@
 import path from "node:path";
 import type { Root, RootContent } from "mdast";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, {
+  type Components,
+  defaultUrlTransform,
+} from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { rawMarkdownLinks } from "../core/links";
+import { hasReferencePrefix, parseReference } from "../core/references";
 import { AREA_PREFIX, routes } from "./routes";
 
 interface MarkdownContentProps {
@@ -18,6 +22,11 @@ interface MarkdownContentProps {
 /** Schemes a document may link to. Everything else is read as a path. */
 const LINK_SCHEME = /^(?:https?|mailto|tel):/i;
 const DOCUMENT_PATH = new RegExp(`^${AREA_PREFIX}/[^/]+/resources(?:/|$)`);
+
+/** A Repository has no page to open, and plain text would read as a dead link. */
+function repositoryReference(target: string | undefined): boolean {
+  return target !== undefined && parseReference(target)?.kind === "repository";
+}
 
 /**
  * Splits one run of text on `[[wiki links]]`. Working on the parsed tree
@@ -49,7 +58,9 @@ function splitWikiLinks(
             url: href,
             children: [{ type: "text", value: label }],
           }
-        : { type: "text", value: label },
+        : repositoryReference(target)
+          ? { type: "inlineCode", value: label }
+          : { type: "text", value: label },
     );
     last = match.index + whole.length;
   }
@@ -205,13 +216,14 @@ export function MarkdownContent({
       }
 
       const resolved = resolveDocumentHref?.(documentTarget(href));
-      return resolved ? (
-        <a data-document-link="" href={resolved}>
-          {children}
-        </a>
-      ) : (
-        children
-      );
+      if (resolved) {
+        return (
+          <a data-document-link="" href={resolved}>
+            {children}
+          </a>
+        );
+      }
+      return repositoryReference(href) ? <code>{children}</code> : children;
     },
     img({ alt, src }) {
       const resolved = src ? resolveImageSrc?.(documentTarget(src)) : undefined;
@@ -225,6 +237,11 @@ export function MarkdownContent({
     >
       <ReactMarkdown
         components={components}
+        // A reference reads as an unknown URL scheme, which react-markdown
+        // strips by default before the link component ever sees it.
+        urlTransform={(url) =>
+          hasReferencePrefix(url) ? url : defaultUrlTransform(url)
+        }
         remarkPlugins={[
           remarkGfm,
           remarkWikiLinks(resolveDocumentHref),

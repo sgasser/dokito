@@ -55,6 +55,29 @@ Do not scan an arbitrary parent directory to infer registration. Do not link a
 generic agent workspace such as an OpenClaw workspace merely to make context
 resolution pass. Create a new Area only when the user explicitly asks for one.
 
+## Write links
+
+A link names one thing by its filename, never by a document title and never by
+a path relative to the writer. Keep the display text free: `[[filename|what to
+read]]`.
+
+- A Resource: its filename, or as much of the trailing path as it takes to be
+  unambiguous. `[[Data retention]]`, `[[platform/overview]]`.
+- A Project: `[[project:<filename slug>]]`. A bare filename also reaches a
+  Project; the prefix says which kind is meant and keeps the link readable.
+- A Task: `[[task:<ULID>|what it is]]`. The prefix is required here, because
+  only the ULID is the Task's identity and the slug after it is free to change.
+  Always give a Task link display text: a bare ULID tells a reader nothing.
+- A file in a connected Repository: `[[repo:<repository id>/<path>]]`.
+
+Never write a machine path such as `/Users/...` or `~/...` into an Area. It is
+wrong on every other machine and defeats sharing the Area. Reference the
+Repository instead, and run `dokito resolve <reference> --json` when a real
+local path is needed for the current step.
+
+Link only within the current Area. When something belongs to another Area, say
+so in prose; `dokito resolve` finds it across every registered Area.
+
 ## Choose the workflow
 
 - For file shapes, identities, and allowed fields, read

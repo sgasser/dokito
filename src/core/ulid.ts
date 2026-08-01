@@ -3,6 +3,9 @@ import { fail } from "./error";
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
+/** The 26 characters `createUlid` emits, as a pattern fragment for its readers. */
+export const ULID_PATTERN = "[0-9A-HJKMNP-TV-Z]{26}";
+
 function encode(value: bigint, length: number): string {
   const characters = new Array<string>(length);
   let remaining = value;

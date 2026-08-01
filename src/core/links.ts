@@ -1,6 +1,7 @@
 import type { Root, RootContent } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { stripFrontmatter } from "./markdown";
+import { hasReferencePrefix, parseReference } from "./references";
 
 /**
  * A wiki target holds no brackets of its own. Excluding `[` as well as `]`
@@ -10,15 +11,16 @@ import { stripFrontmatter } from "./markdown";
 const WIKI_LINK = /\[\[([^[\]\n]+)\]\]/g;
 const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
+/** A document is linkable by its path alone; a title is display text. */
 export interface LinkableDocument {
   relativePath: string;
-  title: string;
 }
 
 export interface DocumentLookup<T extends LinkableDocument> {
   byPath: ReadonlyMap<string, T>;
-  byTitle: ReadonlyMap<string, T>;
-  byBasename: ReadonlyMap<string, T>;
+  /** Every trailing run of path segments, so a filename alone can be written. */
+  bySuffix: ReadonlyMap<string, readonly T[]>;
+  byTaskId: ReadonlyMap<string, readonly T[]>;
 }
 
 export interface DocumentLinks {
@@ -169,7 +171,12 @@ export function extractLinkTargets(content: string): string[] {
 
   const add = (value: string | undefined): void => {
     const target = value?.split("#", 1)[0]?.trim();
-    if (!target || EXTERNAL.test(target) || seen.has(target)) {
+    if (!target || seen.has(target)) {
+      return;
+    }
+    // `project:launch` matches the shape of a URL scheme, so the known
+    // reference prefixes have to be admitted before external targets are cut.
+    if (EXTERNAL.test(target) && !hasReferencePrefix(target)) {
       return;
     }
     seen.add(target);
@@ -216,89 +223,149 @@ export function extractLinkTargets(content: string): string[] {
   return targets;
 }
 
-function decodeTarget(target: string): string {
-  try {
-    return decodeURIComponent(target);
-  } catch {
-    // A literal percent is a valid filename character even though it is not a
-    // valid percent escape, so malformed encoding stays literal.
-    return target;
-  }
+function key(value: string): string {
+  return value.toLocaleLowerCase();
 }
 
 /**
- * Resolve a link target against the linking document's path. Returns the
- * area-relative path, or undefined when the target escapes the Area.
- */
-export function normalizeLinkTarget(
-  fromPath: string,
-  target: string,
-): string | undefined {
-  const withoutFragment = target.split("#", 1)[0]?.trim();
-  if (!withoutFragment) {
-    return undefined;
-  }
-
-  const input = decodeTarget(withoutFragment).replaceAll("\\", "/");
-  const segments = input.startsWith("/")
-    ? []
-    : fromPath.split("/").slice(0, -1);
-  for (const segment of input.replace(/^\/+/, "").split("/")) {
-    if (segment === "." || segment.length === 0) {
-      continue;
-    }
-    if (segment === "..") {
-      if (segments.length === 0) {
-        return undefined;
-      }
-      segments.pop();
-      continue;
-    }
-    segments.push(segment);
-  }
-  return segments.join("/");
-}
-
-function basename(relativePath: string): string {
-  return (relativePath.split("/").at(-1) ?? relativePath)
-    .replace(/\.md$/i, "")
-    .toLocaleLowerCase();
-}
-
-/**
- * Link resolution is used while building the Area graph and while rendering
- * every link in one open document. Build its three indexes once so neither
- * caller has to scan the complete document list for every target.
- *
- * Duplicate titles and basenames keep the first document in catalogue order,
- * matching the former `documents.find(...)` behaviour.
+ * Link resolution runs while building the Area graph and while rendering every
+ * link in one open document. Build the indexes once so neither caller has to
+ * scan the complete document list for every target.
  */
 export function createDocumentLookup<T extends LinkableDocument>(
   documents: readonly T[],
 ): DocumentLookup<T> {
   const byPath = new Map<string, T>();
-  const byTitle = new Map<string, T>();
-  const byBasename = new Map<string, T>();
+  const bySuffix = new Map<string, T[]>();
+  const byTaskId = new Map<string, T[]>();
+
+  const append = (index: Map<string, T[]>, at: string, document: T): void => {
+    const existing = index.get(at);
+    if (existing) {
+      existing.push(document);
+    } else {
+      index.set(at, [document]);
+    }
+  };
 
   for (const document of documents) {
-    byPath.set(document.relativePath, document);
-    const title = document.title.toLocaleLowerCase();
-    if (!byTitle.has(title)) {
-      byTitle.set(title, document);
+    const segments = document.relativePath.split("/");
+    byPath.set(key(document.relativePath), document);
+    for (let index = 0; index < segments.length; index += 1) {
+      append(bySuffix, key(segments.slice(index).join("/")), document);
     }
-    const name = basename(document.relativePath);
-    if (!byBasename.has(name)) {
-      byBasename.set(name, document);
+    const id = segments[1]?.replace(/\.md$/i, "").split("-", 1)[0];
+    if (segments[0] === "tasks" && segments.length === 2 && id) {
+      // Two files sharing a ULID is an invalid Area, and reporting both beats
+      // resolving to whichever was read last.
+      append(byTaskId, id.toUpperCase(), document);
     }
   }
 
-  return { byPath, byTitle, byBasename };
+  return { byPath, bySuffix, byTaskId };
+}
+
+/** Steps between two documents in the collection tree, via their shared folder. */
+function treeDistance(fromPath: string, candidatePath: string): number {
+  const from = fromPath.split("/").slice(0, -1);
+  const candidate = candidatePath.split("/").slice(0, -1);
+  let common = 0;
+  while (
+    common < from.length &&
+    common < candidate.length &&
+    key(from[common] ?? "") === key(candidate[common] ?? "")
+  ) {
+    common += 1;
+  }
+  return from.length - common + (candidate.length - common);
 }
 
 /**
- * Resolve a link target to a known document. Matches the resolved path first,
- * then falls back to a document title or filename so that `[[Security]]`
- * reaches `resources/security.md` from anywhere in the Area.
+ * Every document a target could name, without regard to where it was written.
+ * A Repository is not a document and never matches.
+ */
+export function documentMatches<T extends LinkableDocument>(
+  target: string,
+  lookup: DocumentLookup<T>,
+): readonly T[] {
+  const reference = parseReference(target);
+  if (!reference || reference.kind === "repository") {
+    return [];
+  }
+  if (reference.kind === "project") {
+    const project = lookup.byPath.get(key(`projects/${reference.id}.md`));
+    return project ? [project] : [];
+  }
+  if (reference.kind === "task") {
+    return lookup.byTaskId.get(reference.id) ?? [];
+  }
+
+  const wanted = key(reference.target);
+  return (
+    lookup.bySuffix.get(wanted) ?? lookup.bySuffix.get(`${wanted}.md`) ?? []
+  );
+}
+
+/**
+ * The documents a link could mean, narrowed to those nearest the linking
+ * document. More than one is an ambiguous filename, which the caller reports
+ * rather than resolves.
+ */
+export function linkCandidates<T extends LinkableDocument>(
+  fromPath: string,
+  target: string,
+  lookup: DocumentLookup<T>,
+): readonly T[] {
+  const candidates = documentMatches(target, lookup);
+  if (candidates.length < 2) {
+    return candidates;
+  }
+
+  // A complete Area path is the document's identity, so it outranks a longer
+  // path that merely ends the same way.
+  const reference = parseReference(target);
+  const wanted = reference?.kind === "document" ? key(reference.target) : "";
+  const exact = candidates.filter(
+    (candidate) =>
+      key(candidate.relativePath) === wanted ||
+      key(candidate.relativePath) === `${wanted}.md`,
+  );
+  if (exact.length === 1) {
+    return exact;
+  }
+
+  let nearest = Number.POSITIVE_INFINITY;
+  let closest: T[] = [];
+  for (const candidate of candidates) {
+    const distance = treeDistance(fromPath, candidate.relativePath);
+    if (distance < nearest) {
+      nearest = distance;
+      closest = [candidate];
+    } else if (distance === nearest) {
+      closest.push(candidate);
+    }
+  }
+  return closest;
+}
+
+/** The shortest end of a document's path that reaches it from anywhere. */
+export function shortestLinkForm<T extends LinkableDocument>(
+  document: T,
+  lookup: DocumentLookup<T>,
+): string {
+  const segments = document.relativePath.split("/");
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    const suffix = segments.slice(index).join("/");
+    if ((lookup.bySuffix.get(key(suffix)) ?? []).length === 1) {
+      return suffix.replace(/\.md$/i, "");
+    }
+  }
+  return document.relativePath.replace(/\.md$/i, "");
+}
+
+/**
+ * The document a link target means, or undefined when nothing matches and when
+ * several documents match equally well.
  */
 export function resolveLink<T extends LinkableDocument>(
   fromPath: string,
@@ -306,19 +373,8 @@ export function resolveLink<T extends LinkableDocument>(
   documents: readonly T[],
   lookup: DocumentLookup<T> = createDocumentLookup(documents),
 ): T | undefined {
-  const normalized = normalizeLinkTarget(fromPath, target);
-  const withExtension =
-    normalized && !normalized.endsWith(".md") ? `${normalized}.md` : normalized;
-  const name = decodeTarget(target.split("#", 1)[0] ?? "")
-    ?.replace(/\.md$/i, "")
-    .toLocaleLowerCase();
-
-  return (
-    (normalized ? lookup.byPath.get(normalized) : undefined) ??
-    (withExtension ? lookup.byPath.get(withExtension) : undefined) ??
-    (name ? lookup.byTitle.get(name) : undefined) ??
-    (name ? lookup.byBasename.get(name) : undefined)
-  );
+  const candidates = linkCandidates(fromPath, target, lookup);
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 /**

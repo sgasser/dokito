@@ -3,6 +3,7 @@ import { listAreas, registerExistingArea } from "../core/areas";
 import { context } from "../core/context";
 import { DokitoError } from "../core/error";
 import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
+import { resolveReference } from "../core/resolve";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
 import {
@@ -30,7 +31,8 @@ Commands:
   projects
   tasks
   context [--raw] [--cwd <path>]
-  validate [--cwd <path>]
+  resolve <reference> [--cwd <path>]
+  validate [--links] [--cwd <path>]
   id
   web [--port <port>]
   web start [--port <port>]
@@ -45,7 +47,26 @@ Global options:
 
 Command options:
   --cwd <path>     Resolve the Area and Repository from another directory
+  --links          Resolve every link and Repository checkout
 `;
+}
+
+function resolveHuman(
+  result: Awaited<ReturnType<typeof resolveReference>>,
+): string {
+  return [
+    `Matches: ${result.matches.length}`,
+    ...result.matches.map((match) =>
+      [
+        `- ${match.area}`,
+        match.relativePath ?? `repo:${match.repository}`,
+        match.path,
+        match.exists ? undefined : "(missing)",
+      ]
+        .filter((part) => part !== undefined)
+        .join("  "),
+    ),
+  ].join("\n");
 }
 
 function areasHuman(result: Awaited<ReturnType<typeof listAreas>>): string {
@@ -253,14 +274,28 @@ export async function runCli(global: GlobalOptions): Promise<void> {
     return;
   }
 
-  if (command === "validate") {
+  if (command === "resolve") {
     assertOptions(global, ["cwd"]);
+    const reference = onePositional(args, "reference");
+    const result = await resolveReference({
+      cwd: global.cwd,
+      configPath: global.configPath,
+      reference,
+    });
+    success(global.json, result, resolveHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "validate") {
+    assertOptions(global, ["cwd", "links"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "validate accepts no arguments.");
     }
     const result = await validateArea({
       cwd: global.cwd,
       configPath: global.configPath,
+      links: global.booleans.has("links"),
     });
     success(
       global.json,

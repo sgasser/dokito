@@ -24,6 +24,7 @@ import type {
   RepositoryConfig,
   TaskDocument,
 } from "./types";
+import { ULID_PATTERN } from "./ulid";
 import {
   asRecord,
   assertKeys,
@@ -35,7 +36,7 @@ import {
 } from "./yaml";
 
 const SLUG = /^[a-z][a-z0-9-]*$/;
-const ULID_FILENAME = /^([0-9A-HJKMNP-TV-Z]{26})-([a-z0-9-]+)\.md$/;
+const ULID_FILENAME = new RegExp(`^(${ULID_PATTERN})-([a-z0-9-]+)\\.md$`);
 
 export function validateSlug(value: string, label: string): string {
   fail(SLUG.test(value), "invalid_slug", `${label} must be a lowercase slug.`, {

@@ -426,7 +426,7 @@ describe("Web", () => {
       taskPath,
       `${await readFile(taskPath, "utf8")}
 
-[Architecture](../resources/architecture.md)
+[Architecture](architecture)
 `,
       "utf8",
     );
@@ -523,7 +523,7 @@ describe("Web", () => {
 ## Definition of done
 
 - **Documentation** is published.
-- See [product context](../resources/product.md).
+- See [product context](product).
 
 ![Release chart](../resources/chart.png)
 `,

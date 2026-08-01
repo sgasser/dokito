@@ -22,9 +22,9 @@ dokito [--json] [--config <path>] <command>
 | `--help`, `-h` | Print command help |
 
 `--cwd <path>` resolves the Area and Repository from another directory. Only
-`register`, `context`, and `validate` work on a single Area, so only they
-accept it. No other command resolves one, so they reject `--cwd` rather than
-accepting it and ignoring it.
+`register`, `context`, `resolve`, and `validate` work from a resolved Area, so
+only they accept it. No other command resolves one, so they reject `--cwd`
+rather than accepting it and ignoring it.
 
 The configuration path comes from `--config`, `DOKITO_CONFIG_PATH`,
 `$XDG_CONFIG_HOME/dokito/config.yaml`, or `~/.config/dokito/config.yaml`, in
@@ -220,15 +220,71 @@ directory. Counts cover discoverable Markdown files but do not parse every
 document. `--raw` writes only `context.md` and cannot be combined with
 `--json`.
 
+## `dokito resolve`
+
+```bash
+dokito resolve <reference>
+```
+
+Turns a link target into absolute local paths. It searches every registered
+Area rather than only the current one and returns every match, because a
+person or an agent asking where a name lives is the one who knows which match
+they meant. Matches in the Area of the working directory come first.
+
+```bash
+dokito resolve "Data retention"
+dokito resolve project:launch
+dokito resolve task:01K1ABCXYZ0000000000000000
+dokito resolve repo:web-app/docs/SPEC.md
+```
+
+With `--json`, `data` contains the configuration path, the reference, the Area
+of the working directory when it resolves to one, `matches`, and warnings:
+
+```json
+{
+  "configPath": "/Users/example/.config/dokito/config.yaml",
+  "reference": "repo:web-app/docs/SPEC.md",
+  "area": "product",
+  "matches": [
+    {
+      "kind": "repository",
+      "area": "product",
+      "areaName": "Product",
+      "areaRoot": "/workspace/product-area",
+      "repository": "web-app",
+      "path": "/workspace/web-app/docs/SPEC.md",
+      "exists": true
+    }
+  ],
+  "warnings": []
+}
+```
+
+A document match carries `relativePath` instead of `repository`. A configured
+checkout that is currently absent is still a match, with `exists: false`, so
+the intended location stays visible.
+
+Three cases fail with a non-zero exit code: `reference_invalid` for a target
+that is not a filename or a known prefix, `reference_not_found` when no
+registered Area holds it, and `repository_not_local` when an Area registers the
+Repository but no checkout is configured for it on this machine.
+
 ## `dokito validate`
 
 ```bash
-dokito validate
+dokito validate [--links]
 ```
 
 Validates the resolved Area manifest, the `context.md` size, every strict
 Project and Task document, and their typed relations. It also reads every
 Resource and checks local Markdown links.
+
+Without `--links` it reads only the Area and its manifest, so it reaches the
+same verdict on every machine the Area is shared with. `--links` adds the
+machine-dependent checks: it resolves each `repo:` target against this
+machine's configured checkouts and reports which other registered Area holds a
+name the current one does not.
 
 Malformed typed documents and invalid structured relations fail with a
 non-zero exit code and stable domain error. Every other command skips such a
@@ -236,7 +292,9 @@ document and keeps reading; `validate` is the command that rejects it, and it
 reports every unreadable document it found in `details.problems`.
 
 Unknown Area or Resource states, missing H1 headings in free-form documents,
-and unresolved local document links are successful warnings.
+and unresolved, ambiguous or relative links are successful warnings. An
+ambiguous link names the documents that share the filename, and a relative link
+names the form to write instead.
 
 With `--json`, `data` contains the Area ID, context path, byte count and
 state, collection paths and counts, and `warnings`.

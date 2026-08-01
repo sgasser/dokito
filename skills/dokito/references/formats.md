@@ -72,6 +72,12 @@ move detail into Resources.
 Resource identity is its path below `resources/`. Nested directories and spaces
 are allowed and the filename ends in `.md`.
 
+Choose a filename that is unique within the Area, and keep the H1 in agreement
+with it. Folders organize Resources but do not distinguish them: a link written
+from a Task or a Project cannot see the folder, so `Platform overview.md` works
+where a second `platform/overview.md` does not. Name the file the way you would
+say it aloud.
+
 ```markdown
 # Architecture
 
