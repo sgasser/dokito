@@ -33,3 +33,22 @@ describe("The --cwd option", () => {
     },
   );
 });
+
+describe("Dokito Web subcommands", () => {
+  test("status and stop reject the start-only port option", async () => {
+    for (const command of ["status", "stop"]) {
+      await expect(
+        runCli(parseCli(["web", command, "--port", "4190"])),
+      ).rejects.toThrow("Option --port is not valid for this command.");
+    }
+  });
+
+  test("rejects unknown and extra web subcommands", async () => {
+    await expect(runCli(parseCli(["web", "restart"]))).rejects.toThrow(
+      "Unknown web command: restart",
+    );
+    await expect(runCli(parseCli(["web", "start", "again"]))).rejects.toThrow(
+      "web start accepts no additional arguments.",
+    );
+  });
+});

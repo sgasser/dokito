@@ -256,14 +256,25 @@ With `--json`, the generated value is returned as `data.id`.
 
 ```bash
 dokito web [--port <port>]
+dokito web start [--port <port>]
+dokito web status
+dokito web stop
 ```
 
-Starts the local, read-only Web view on `127.0.0.1`. Requests whose Host is not
-`127.0.0.1`, `[::1]`, or `localhost` are rejected.
+`dokito web` starts the local, read-only Web view on `127.0.0.1` in the
+foreground. Requests whose Host is not `127.0.0.1`, `[::1]`, or `localhost`
+are rejected.
 
 Without an explicit port, Dokito tries `4176` through `4185` and reuses an
 existing Dokito instance. An explicit port must be between 1 and 65535 and
 fails when another service uses it.
+
+`dokito web start` runs Dokito in the background. It survives closed terminals
+but not a restart or crash, and repeated starts are a no-op. `status` verifies
+the runtime identity; `stop` verifies it before sending `SIGTERM`.
+
+Managed state and logs use `<config>.web.json` and `<config>.web.log`. JSON
+output includes the log path.
 
 The Web view reads Area files directly. It browses Resources, Projects, Tasks,
 and search results. It does not edit Markdown.

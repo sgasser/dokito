@@ -97,8 +97,12 @@ That is what your agent starts from. The skill creates, registers, and
 validates the Area. To read it yourself, open the Web view:
 
 ```bash
-dokito web
+dokito web start
 ```
+
+The managed background process survives closed terminals and agent sessions.
+Inspect or stop it with `dokito web status` and `dokito web stop`. Use
+`dokito web` when you deliberately want the server in the foreground.
 
 ## Plain files on disk
 

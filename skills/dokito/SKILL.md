@@ -115,3 +115,10 @@ When work starts from an explicitly selected Task, patch only that Task's
 `status` to `in_progress` and validate the Area. Patch it to `done` only after
 the requested work and its checks succeed. Add Tasks or choose `waiting`,
 `someday`, or `cancelled` only when the user requests that state change.
+
+## Web runtime
+
+Start Dokito Web only on explicit request. Use `dokito web start` for a
+background process, `dokito web status` to inspect it, and `dokito web stop` to
+stop it. Use `dokito web` for foreground operation and pass `--config` for a
+non-default local configuration.
