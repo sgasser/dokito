@@ -6,8 +6,8 @@ authoritative and must be preserved by targeted edits.
 Every Project and Task needs a `#` H1 somewhere in its body, and the first one
 becomes the document title. A Project or Task without one fails validation for
 the whole Area; in `context.md` a missing H1 is only a warning and the Web view
-falls back to the filename. A Resource is named by its file and needs no H1 at
-all. An H1 that appears solely inside a fenced code block does not count, and
+falls back to the filename. A Resource is named by its file instead. An H1
+that appears solely inside a fenced code block does not count, and
 demoting the real one to `##` invalidates the document.
 
 ## Area
@@ -77,9 +77,8 @@ would say it aloud: it is what links resolve and what every screen shows,
 heading included. Folders organize Resources but do not distinguish them: a
 link written from a Task or a Project cannot see the folder, so
 `Platform overview.md` works where a second `platform/overview.md` does not.
-An H1 is optional and is not shown, because the heading is the filename. One
-that says something else is reported by `dokito validate`, so put that wording
-in the filename or the body instead.
+`dokito validate` reports an H1 that says something the filename does not, so
+put that wording in the filename or the body.
 
 ```markdown
 Reference material, in whatever shape suits it.

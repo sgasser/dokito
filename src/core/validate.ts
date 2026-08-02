@@ -287,7 +287,7 @@ export async function validateArea(
         path.basename(resource.path, ".md").toLocaleLowerCase()
     ) {
       warnings.push(
-        `${resource.path} has an H1 its filename does not say; the reader shows the filename, so that heading is not displayed.`,
+        `${resource.path} has an H1 its filename does not say, and only the filename is shown.`,
       );
     }
     resourceDocuments.push({

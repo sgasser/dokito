@@ -259,9 +259,9 @@ state: archived
 | name | yes | the filename, shown as the heading and in every list |
 | content | no | free-form Markdown |
 
-Frontmatter and an H1 are optional. A Resource is named by its file, in every
-list and as its heading, so nothing has to be kept in step with the filename.
-An unknown state is read as active and reported as a warning. Resources use
+Frontmatter and an H1 are optional: a Resource is named by its file, in every
+list and as its heading. An unknown state is read as active and reported as a
+warning. Resources use
 Markdown links rather than typed relation frontmatter.
 
 ## Task model
