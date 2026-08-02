@@ -25,6 +25,7 @@ const CLI_OPTIONS = {
   config: { type: "string" },
   port: { type: "string" },
   raw: { type: "boolean" },
+  links: { type: "boolean" },
 } as const satisfies ParseArgsOptionsConfig;
 
 export function parseCli(argv: string[]): GlobalOptions {

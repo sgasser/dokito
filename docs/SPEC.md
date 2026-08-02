@@ -37,14 +37,15 @@ relations.
 | Project | `repositories` | Repository | zero to many | every ID is registered by the Area |
 | Task | `project` | Project | zero or one | the Project exists in the same Area |
 | Task | `repository` | Repository | zero or one | the Repository is registered by the Area |
-| Document | Markdown or wiki link | Area document | zero to many | unresolved local document targets produce a validation warning |
+| Document | Markdown or wiki link | Area document or Repository | zero to many | unresolved and ambiguous targets produce a validation warning |
 
 When a Task carries both `project` and `repository`, that Repository must
 appear in the Project's `repositories` list. `dokito validate` rejects an Area
 where a Task names a Project–Repository pair that violates this relation.
 
-Projects, Tasks, and Resources link supporting documents in prose; unresolved
-local document links are validation warnings.
+Projects, Tasks, and Resources link supporting documents in prose. Unresolved
+and ambiguous links are validation warnings; see
+[Links and references](#links-and-references) for how a target is written.
 
 Some relations are derived rather than stored:
 
@@ -306,6 +307,52 @@ frontmatter, H1, and prose directly. Task frontmatter is strict and unknown
 fields are rejected. Clear optional fields by removing them, not by writing
 `null` or an empty scalar. Any status transition is valid.
 
+## Links and references
+
+A link names one thing by its filename. Nothing resolves through a document
+title, so a title stays display text and only the filename has to be kept in
+agreement. An Area references only itself and its own Repositories, which is
+what lets it be shared on its own.
+
+| Written | Means |
+|---|---|
+| `[[Data retention]]` | the document with that filename, in any collection |
+| `[[platform/overview]]` | enough of the path to be unambiguous |
+| `[[resources/platform/overview.md]]` | the complete Area-relative path |
+| `[[project:launch]]` | the Project with that filename |
+| `[[task:01K1ABCXYZ0000000000000000]]` | the Task with that ULID |
+| `[[repo:web-app/docs/SPEC.md]]` | a path inside a registered Repository |
+
+Both Markdown and wiki syntax carry any of these, and the display text is
+independent of the target in either.
+
+A filename alone reaches any collection, so `[[launch]]` finds
+`projects/launch.md`. The `project:` and `task:` prefixes say which kind is
+meant and narrow the search to it. A `task:` target is the bare ULID and
+nothing else: the slug after it is not part of the identity, so a link that
+carried it would depend on a name that is free to change. Anything following
+either identity, as in `project:a/b`, is reported rather than resolved.
+
+A target is the end of exactly one document's Area-relative path, matched
+without regard to case and with `.md` optional. When several documents end the
+same way, the one nearest the linking document in the collection tree wins,
+counting steps up to the nearest shared folder and back down. A complete Area
+path outranks a longer path that merely ends the same way.
+
+Documents that remain equally near are ambiguous. Dokito resolves nothing and
+`validate` names them, because a duplicate filename is fixed once at its source
+rather than silently at every link that reaches it. Relative targets containing
+`..` do not resolve; the warning names the form to write instead.
+
+A `repo:` target is not a document. It never appears in the Area link graph,
+and the Area manifest is what decides whether its Repository is known. Whether
+a checkout exists is a fact about the current machine, so it is checked only by
+`dokito validate --links` and never changes whether an Area is valid. Having no
+page to open, it renders in the Web view as code rather than as a link.
+
+`dokito resolve` turns any of these into absolute local paths, searching every
+registered Area and returning every match rather than choosing one.
+
 ## Context
 
 `dokito context` resolves the current Area from either an Area directory or a
@@ -381,10 +428,15 @@ work is real. Its warning states that the reference is unresolved rather than
 that the Task was skipped.
 
 Free-form conventions do not make an Area invalid. An unknown Area or Resource
-state, a missing H1 in `context.md` or a Resource, and an unresolved local
-document link produce warnings while the command succeeds. Structured output
+state, a missing H1 in `context.md` or a Resource, and an unresolved, ambiguous
+or relative link produce warnings while the command succeeds. Structured output
 returns the Area, context state and byte count, collection paths and counts,
 and warnings.
+
+The default pass reads only the Area and its manifest, so it reaches the same
+verdict on every machine the Area is shared with. `--links` adds the checks that
+cannot: it resolves each `repo:` target against this machine's checkouts and
+reports which other registered Area holds a name this one does not.
 
 ## Local configuration
 

@@ -14,9 +14,11 @@ creating or changing a typed relation.
 - When a Task names both, its Repository must appear in the Project's
   `repositories` list.
 - Resources, Projects, Tasks, and Context relate through Markdown links in
-  their prose. Do not add ad hoc knowledge-relation frontmatter.
+  their prose. Do not add ad hoc knowledge-relation frontmatter. Write each
+  link as a filename, as described under "Write links" in the skill.
 
 Before removing a Project or Repository relation, inspect every Task that can
-depend on it. Before deleting a document, search for Markdown and wiki links
-that target it. `dokito validate --json` is the final structural check, not a
+depend on it. Before renaming or deleting a document, search for Markdown and
+wiki links that target it: Dokito never rewrites a link for you, and a rename
+that changes the filename changes the identity every link uses. `dokito validate --json` is the final structural check, not a
 replacement for semantic judgment.

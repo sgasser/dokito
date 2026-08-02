@@ -112,6 +112,51 @@ describe("Rendered Markdown", () => {
     expect(block?.trim().split("\n")).toHaveLength(2);
   });
 
+  /**
+   * `project:` and `task:` read as unknown URL schemes, and react-markdown
+   * empties those hrefs before the link component runs. The wiki form never
+   * went through that path, so only the Markdown form silently lost its link.
+   */
+  test("resolves a reference written in Markdown syntax", () => {
+    const html = renderToStaticMarkup(
+      createElement(MarkdownContent, {
+        content: [
+          "[Wiki](task:01K1ABCXYZ0000000000000000) and",
+          "[[task:01K1ABCXYZ0000000000000000|Bracket]] and",
+          "[Project](project:launch).",
+        ].join(" "),
+        resolveDocumentHref: (target: string) =>
+          `/area/product/resources/${target}`,
+      }),
+    );
+    const href = (target: string) =>
+      `<a data-document-link="" href="/area/product/resources/${target}">`;
+
+    expect(html).toContain(
+      `${href("task:01K1ABCXYZ0000000000000000")}Wiki</a>`,
+    );
+    expect(html).toContain(
+      `${href("task:01K1ABCXYZ0000000000000000")}Bracket</a>`,
+    );
+    expect(html).toContain(`${href("project:launch")}Project</a>`);
+  });
+
+  /**
+   * A Repository has no page to open, and plain text would read exactly like a
+   * link that failed to resolve.
+   */
+  test("sets a Repository reference as code in both syntaxes", () => {
+    const html = renderToStaticMarkup(
+      createElement(MarkdownContent, {
+        content: "[[repo:web-app/docs/SPEC.md]] and [Spec](repo:web-app).",
+        resolveDocumentHref: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("<code>repo:web-app/docs/SPEC.md</code>");
+    expect(html).toContain("<code>Spec</code>");
+  });
+
   test("skips only top-level summary paragraphs in Project details", () => {
     const html = renderToStaticMarkup(
       createElement(MarkdownContent, {

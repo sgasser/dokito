@@ -72,7 +72,7 @@ await writeFile(
   path.join(workspace.areaRoot, "resources", "guides", "setup.md"),
   `# Setup
 
-[Architecture](../architecture.md)
+[Architecture](architecture)
 `,
   "utf8",
 );
