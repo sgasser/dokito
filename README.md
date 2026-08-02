@@ -142,14 +142,10 @@ rename. Project and Task frontmatter is strict — unknown fields and invalid
 values fail `dokito validate` — so an agent cannot quietly invent a shape of
 its own. Resources stay free-form Markdown.
 
-Documents link to each other by filename. `[[architecture]]` reaches
-`resources/architecture.md` from anywhere in the Area, and as much of the path
-as it takes settles a repeated name. A Project is `[[project:launch]]`, a Task
-`[[task:01K1ABCXYZ0000000000000000|Draft the launch post]]`, and a file in a
-connected Repository `[[repo:web-app/README.md]]`. Headings are display text,
-and a link never carries a `../` path or a path from your machine — which is
-what lets you hand the directory to someone who keeps it elsewhere. When one
-filename is used twice, `dokito validate` names both instead of picking one.
+Documents link to each other by filename: `[[architecture]]` reaches
+`resources/architecture.md` from anywhere in the Area. No link carries a path
+from your machine, which is what lets you hand the directory to someone who
+keeps it elsewhere.
 
 Read them in any editor, grep them, review them in a pull request. These files
 are the state. For manual setup and every supported file shape, see the
