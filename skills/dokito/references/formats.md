@@ -5,10 +5,10 @@ authoritative and must be preserved by targeted edits.
 
 Every Project and Task needs a `#` H1 somewhere in its body, and the first one
 becomes the document title. A Project or Task without one fails validation for
-the whole Area; in `context.md` and Resources a missing H1 is only a warning
-and the Web view falls back to the filename. An H1 that appears solely inside a
-fenced code block does not count, and demoting the real one to `##` invalidates
-the document.
+the whole Area; in `context.md` a missing H1 is only a warning and the Web view
+falls back to the filename. A Resource is named by its file and needs no H1 at
+all. An H1 that appears solely inside a fenced code block does not count, and
+demoting the real one to `##` invalidates the document.
 
 ## Area
 

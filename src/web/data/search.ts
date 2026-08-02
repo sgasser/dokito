@@ -1,6 +1,9 @@
-import { frontmatterField } from "../../core/markdown";
+import { documentBody, frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
-import { searchDocumentContent } from "../../core/search";
+import {
+  type SearchContentResult,
+  searchDocumentContent,
+} from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
 import { documentLabel } from "../kinds";
@@ -48,6 +51,19 @@ const REASON_ORDER: readonly WebSearchReason[] = [
   "title",
   "content",
 ];
+
+/** A hit the name earned shows the document's opening line, unmarked. */
+function openingLine(content: string): SearchContentResult {
+  const line = documentBody(content)
+    .split(/\r?\n/)
+    .find((value) => value.trim().length > 0);
+  return {
+    line: 0,
+    snippet: line?.trim() ?? "",
+    matchStart: 0,
+    matchLength: 0,
+  };
+}
 
 function hitReason(document: WebDocument, query: string): WebSearchReason {
   const status = frontmatterField(document.content, "status");
@@ -130,11 +146,16 @@ export async function loadSearchView(
           if (document.unreadable) {
             return [];
           }
-          const result = searchDocumentContent(
-            document.content,
-            query,
-            true,
-          )[0];
+          /*
+           * A Resource is named by its file and needs no H1, so a name the body
+           * never repeats would have no way into Search while the palette still
+           * matched it.
+           */
+          const result =
+            searchDocumentContent(document.content, query, true)[0] ??
+            (documentLabel(document).toLocaleLowerCase().includes(needle)
+              ? openingLine(document.content)
+              : undefined);
           return result
             ? [
                 {

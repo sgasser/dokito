@@ -815,6 +815,41 @@ describe("Web", () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
+  /**
+   * A Resource is named by its file and needs no H1, so a name the body never
+   * repeats would otherwise be unreachable from Search while the palette still
+   * found it.
+   */
+  test("finds a Resource by the name on its row", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "Platform overview.md"),
+      "How the platform is operated.",
+      "utf8",
+    );
+
+    const results = await loadSearchView({
+      configPath: workspace.configPath,
+      area: "product",
+      query: "platform overview",
+    });
+
+    expect(results.hits).toHaveLength(1);
+    expect(results.hits[0]).toMatchObject({
+      path: "resources/Platform overview.md",
+      title: "Platform overview",
+      reason: "title",
+      snippet: "How the platform is operated.",
+    });
+  });
+
   test("ranks the complete search set before applying the result limit", async () => {
     workspace = await createTestWorkspace();
     await registerTestArea({
