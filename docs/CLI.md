@@ -359,7 +359,8 @@ Dokito reports malformed data, unsafe paths, unresolved or ambiguous Areas and
 Repositories, missing files, and oversized context as explicit errors. Use
 `--json` when another program needs stable error codes and details.
 
-A directory that no Area covers fails with `area_not_resolved`, which names
-both resolution paths: no `dokito.yaml` above it, and no Git checkout of a
-registered Repository. This is the normal outcome in an agent workspace, and
-`dokito areas` lists what is available instead.
+A directory that no Area covers fails in one of two ways. Outside a Git
+worktree it is `area_not_resolved`; inside one it is `repository_not_matched`,
+because the remotes and configured Repository paths were read and matched
+nothing. An agent workspace is usually a checkout, so it meets the second.
+Either way `dokito areas` lists what is available instead.

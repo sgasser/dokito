@@ -60,6 +60,21 @@ describe("A named configuration file", () => {
       runCli(parseCli(["--config", "/nonexistent.yaml", "register", "/tmp"])),
     ).rejects.toMatchObject({ code: "area_manifest_not_found" });
   });
+
+  // The path resolver reads an empty value as unset, so the guard must too.
+  test("counts as unnamed when the value is empty", () => {
+    expect(parseCli(["--config", "", "areas"]).configNamed).toBe(false);
+    expect(parseCli(["--config", "/x.yaml", "areas"]).configNamed).toBe(true);
+  });
+
+  test("is checked after the arguments the command needs", async () => {
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "resolve"])),
+    ).rejects.toThrow("Expected one reference.");
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "areas", "extra"])),
+    ).rejects.toThrow("areas accepts no arguments.");
+  });
 });
 
 describe("Dokito Web subcommands", () => {

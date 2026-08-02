@@ -65,9 +65,10 @@ export function parseCli(argv: string[]): GlobalOptions {
       version: booleans.has("version"),
       cwd: path.resolve(values.get("cwd") ?? process.cwd()),
       configPath: defaultConfigPath(values.get("config")),
-      configNamed:
-        values.get("config") !== undefined ||
-        process.env.DOKITO_CONFIG_PATH !== undefined,
+      // Truthiness, because `defaultConfigPath` reads an empty value as unset.
+      configNamed: Boolean(
+        values.get("config") || process.env.DOKITO_CONFIG_PATH,
+      ),
       positionals,
       values,
       booleans,

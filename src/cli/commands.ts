@@ -232,10 +232,10 @@ export async function runCli(global: GlobalOptions): Promise<void> {
 
   if (command === "areas") {
     assertOptions(global, []);
-    await requireNamedConfig(global);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "areas accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listAreas({ configPath: global.configPath });
     success(global.json, result, areasHuman(result));
     writeWarnings(global.json, result.warnings);
@@ -244,10 +244,10 @@ export async function runCli(global: GlobalOptions): Promise<void> {
 
   if (command === "projects") {
     assertOptions(global, []);
-    await requireNamedConfig(global);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "projects accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listRegisteredProjects({
       configPath: global.configPath,
     });
@@ -258,10 +258,10 @@ export async function runCli(global: GlobalOptions): Promise<void> {
 
   if (command === "tasks") {
     assertOptions(global, []);
-    await requireNamedConfig(global);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listRegisteredTasks({
       configPath: global.configPath,
     });
@@ -297,8 +297,8 @@ export async function runCli(global: GlobalOptions): Promise<void> {
 
   if (command === "resolve") {
     assertOptions(global, ["cwd"]);
-    await requireNamedConfig(global);
     const reference = onePositional(args, "reference");
+    await requireNamedConfig(global);
     const result = await resolveReference({
       cwd: global.cwd,
       configPath: global.configPath,
