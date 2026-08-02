@@ -87,7 +87,8 @@ interface MutableResourceDirectory<T> {
  */
 export function resourceExplorerLabel(relativePath: string): string {
   const filename = relativePath.split("/").at(-1) ?? relativePath;
-  return filename.replace(/\.md$/, "");
+  // `resources/.md` is a legal file whose name says nothing; the path does.
+  return filename.replace(/\.md$/, "") || relativePath;
 }
 
 /**
@@ -105,6 +106,31 @@ export function documentLabel(document: {
   return document.kind === "resource"
     ? resourceExplorerLabel(document.relativePath)
     : document.title;
+}
+
+/**
+ * Labels for one flat list. Two documents may share a filename in different
+ * folders, and a list without the tree around it would show the same word
+ * twice; each repeated name therefore carries the folder that separates them.
+ */
+export function listLabels<T extends { relativePath: string }>(
+  documents: readonly T[],
+): Map<string, string> {
+  const counts = new Map<string, number>();
+  for (const document of documents) {
+    const label = resourceExplorerLabel(document.relativePath);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return new Map(
+    documents.map((document) => {
+      const label = resourceExplorerLabel(document.relativePath);
+      const segments = document.relativePath.replace(/\.md$/, "").split("/");
+      return [
+        document.relativePath,
+        (counts.get(label) ?? 0) > 1 ? segments.slice(-2).join("/") : label,
+      ];
+    }),
+  );
 }
 
 /**

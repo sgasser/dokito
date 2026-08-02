@@ -168,6 +168,23 @@ describe("Link warnings", () => {
     expect(warnings[0]).toContain("resources/Platform overview.md");
   });
 
+  /**
+   * Only the heading the reader removes counts. A section heading further down
+   * is shown, and a closing run of hashes is the same words.
+   */
+  test("weighs the leading heading alone", async () => {
+    const fixture = await setup();
+    await writeFile(
+      path.join(fixture.areaRoot, "resources", "Runbook.md"),
+      "# Runbook #\n\n## A section the reader shows\n",
+      "utf8",
+    );
+
+    expect(
+      (await warningsOf(fixture)).filter((entry) => entry.includes("Runbook")),
+    ).toEqual([]);
+  });
+
   test("reports a Repository the manifest does not register", async () => {
     const fixture = await setup();
     await writeTask(fixture, "See [[repo:unknown-app/README.md]].");

@@ -13,7 +13,12 @@ import {
   shortestLinkForm,
 } from "./links";
 import { loadProjects, loadTasks } from "./manifests";
-import { frontmatterField, headingTitle, plainText } from "./markdown";
+import {
+  frontmatterField,
+  headingTitle,
+  leadingHeading,
+  plainText,
+} from "./markdown";
 import {
   hasReferencePrefix,
   isRelativeTarget,
@@ -275,7 +280,7 @@ export async function validateArea(
      * anything else appears nowhere. Reporting it keeps the sentence from
      * going missing without a word.
      */
-    const heading = headingTitle(content);
+    const heading = leadingHeading(content);
     if (
       heading !== undefined &&
       plainText(heading).toLocaleLowerCase() !==

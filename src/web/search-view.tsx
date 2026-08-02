@@ -347,8 +347,9 @@ export function SearchView({ data }: SearchViewProps) {
                       <span className="min-w-0 flex-1 truncate font-mono text-micro text-muted">
                         {/* Every document is Markdown, so the extension
                             repeated on every row without distinguishing. */}
-                        {hit.areaName} · {hit.path.replace(/\.md$/, "")} · line{" "}
-                        {hit.line}
+                        {hit.areaName} · {hit.path.replace(/\.md$/, "")}
+                        {/* A hit the name earned sits on no line of its own. */}
+                        {hit.line > 0 ? ` · line ${hit.line}` : ""}
                       </span>
                       <span className="flex-none text-meta text-muted italic">
                         {hit.reason}

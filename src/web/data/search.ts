@@ -1,9 +1,6 @@
-import { documentBody, frontmatterField } from "../../core/markdown";
+import { frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
-import {
-  type SearchContentResult,
-  searchDocumentContent,
-} from "../../core/search";
+import { openingExcerpt, searchDocumentContent } from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
 import { documentLabel } from "../kinds";
@@ -51,19 +48,6 @@ const REASON_ORDER: readonly WebSearchReason[] = [
   "title",
   "content",
 ];
-
-/** A hit the name earned shows the document's opening line, unmarked. */
-function openingLine(content: string): SearchContentResult {
-  const line = documentBody(content)
-    .split(/\r?\n/)
-    .find((value) => value.trim().length > 0);
-  return {
-    line: 0,
-    snippet: line?.trim() ?? "",
-    matchStart: 0,
-    matchLength: 0,
-  };
-}
 
 function hitReason(document: WebDocument, query: string): WebSearchReason {
   const status = frontmatterField(document.content, "status");
@@ -152,9 +136,14 @@ export async function loadSearchView(
            * matched it.
            */
           const result =
-            searchDocumentContent(document.content, query, true)[0] ??
+            searchDocumentContent(
+              document.content,
+              query,
+              true,
+              document.kind === "resource",
+            )[0] ??
             (documentLabel(document).toLocaleLowerCase().includes(needle)
-              ? openingLine(document.content)
+              ? openingExcerpt(document.content)
               : undefined);
           return result
             ? [

@@ -850,6 +850,40 @@ describe("Web", () => {
     });
   });
 
+  /**
+   * The reader removes a Resource's leading H1, so matching it would send a
+   * reader to a page that does not contain the words they searched for. The
+   * snippet of a name match has to clear the frontmatter for the same reason.
+   */
+  test("searches only what the reader shows", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "Platform overview.md"),
+      "---\nstate: active\n---\n\n# A hidden heading\n\nThe body.\n",
+      "utf8",
+    );
+    const search = async (query: string) =>
+      (
+        await loadSearchView({
+          configPath: workspace?.configPath ?? "",
+          area: "product",
+          query,
+        })
+      ).hits;
+
+    expect(await search("hidden heading")).toHaveLength(0);
+    const byName = await search("platform overview");
+    expect(byName).toHaveLength(1);
+    expect(byName[0]?.snippet).toBe("The body.");
+  });
+
   test("ranks the complete search set before applying the result limit", async () => {
     workspace = await createTestWorkspace();
     await registerTestArea({
