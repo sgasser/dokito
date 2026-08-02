@@ -838,8 +838,9 @@ describe("Web", () => {
       ),
     );
     await writeFile(
-      path.join(resourcesRoot, "zz-best-result.md"),
-      "# Needle exact title\n\nThis is the best result.",
+      // Last by name, first by rank: the needle is in the name a reader sees.
+      path.join(resourcesRoot, "zz needle exact name.md"),
+      "The needle appears here as well; the name is what ranks it first.",
       "utf8",
     );
 
@@ -872,7 +873,7 @@ describe("Web", () => {
     );
 
     expect(results.hits).toHaveLength(60);
-    expect(results.hits[0]?.path).toBe("resources/zz-best-result.md");
+    expect(results.hits[0]?.path).toBe("resources/zz needle exact name.md");
     expect(allFacet?.count).toBe(66);
     expect(resourcesFacet?.count).toBe(66);
     expect(deepLinked.preview?.hit.path).toBe(requestedPath);

@@ -57,7 +57,9 @@ function hitReason(document: WebDocument, query: string): WebSearchReason {
   if (document.kind === "project" && status === "active") {
     return "active";
   }
-  return document.title.toLocaleLowerCase().includes(query)
+  // Ranked and badged against the name on the row, not a heading the reader
+  // never sees.
+  return documentLabel(document).toLocaleLowerCase().includes(query)
     ? "title"
     : "content";
 }
