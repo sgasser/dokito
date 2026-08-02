@@ -91,6 +91,22 @@ export function resourceExplorerLabel(relativePath: string): string {
 }
 
 /**
+ * How a document is named wherever it is listed or linked. A filename is what
+ * a link resolves, so showing it is what makes a list and a link agree. Two
+ * kinds keep their heading instead: a Task is filed under a ULID, and the Area
+ * file is called `context`, so neither filename names anything to a reader.
+ */
+export function documentLabel(document: {
+  kind: WebDocumentKind;
+  relativePath: string;
+  title: string;
+}): string {
+  return document.kind === "task" || document.kind === "area"
+    ? document.title
+    : resourceExplorerLabel(document.relativePath);
+}
+
+/**
  * Builds the visible folder hierarchy from paths the document snapshot already
  * owns. Directory discovery therefore costs no filesystem pass: each path
  * segment is visited once and shared prefixes reuse the same Map entry.

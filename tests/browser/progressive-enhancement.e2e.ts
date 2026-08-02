@@ -261,7 +261,8 @@ test("related reader data is part of each complete page", async ({ page }) => {
   await expect(page.locator("[data-document-title]")).toHaveText(
     "Markdown torture",
   );
-  await expect(page.getByText("My notes", { exact: true })).toBeVisible();
+  const related = page.locator("[data-related-rows]");
+  await expect(related.getByText("my notes", { exact: true })).toBeVisible();
   await expect(page.locator("[data-derived-skeleton]")).toHaveCount(0);
 
   await page
@@ -269,7 +270,7 @@ test("related reader data is part of each complete page", async ({ page }) => {
     .click();
   await expect(page.locator("[data-document-title]")).toHaveText("Security");
   await expect(
-    page.getByText("Markdown torture", { exact: true }),
+    page.locator("[data-related-rows]").getByText("markdown", { exact: true }),
   ).toBeVisible();
 
   await page
@@ -279,7 +280,9 @@ test("related reader data is part of each complete page", async ({ page }) => {
   await expect(page.locator("[data-document-title]")).toHaveText(
     "Markdown torture",
   );
-  await expect(page.getByText("My notes", { exact: true })).toBeVisible();
+  await expect(
+    page.locator("[data-related-rows]").getByText("my notes", { exact: true }),
+  ).toBeVisible();
 });
 
 test("Related handles Unicode paths and preserves the archived filter", async ({
@@ -370,7 +373,7 @@ test("root search ranks a command and a document in one list", async ({
   // A word that only content carries reaches content, with the kind stated on
   // the row rather than as a heading above a group of them.
   await input.fill("architecture");
-  await expect(options.first()).toContainText("Architecture");
+  await expect(options.first()).toContainText("architecture");
   await expect(options.first()).toContainText("Resource");
 
   // The query is never a dead end.

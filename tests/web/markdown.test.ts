@@ -83,7 +83,8 @@ describe("Rendered Markdown", () => {
     expect(article).toContain("data-document-link");
     expect(article).toContain('href="mailto:hi@example.invalid"');
     expect(article).toContain('href="#table"');
-    expect(html).toContain(">My notes</span>");
+    // Lists name a document by its filename, which is what a link resolves.
+    expect(html).toContain(">my notes</span>");
   });
 
   test("refuses a script URL", async () => {
@@ -333,9 +334,7 @@ describe("Explorer contents", () => {
       'href="/area/product/resources/resources/pricing.md?archived=1"',
     );
     // The Related entry says why following it will widen the state filter.
-    expect(html).toMatch(
-      /Related[\s\S]*Pricing thinking[\s\S]*>Archived<\/span>/,
-    );
+    expect(html).toMatch(/Related[\s\S]*pricing[\s\S]*>Archived<\/span>/);
     // A copied deep link without a query still reveals what it names.
     expect(direct).toContain('aria-label="State: All states"');
     expect(direct).toContain(

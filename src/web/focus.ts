@@ -206,7 +206,7 @@ function summarizeProjects(
         id: project.id,
         areaId: area.id,
         areaName: area.name,
-        title: project.title,
+        title: project.id,
         openTasks: area.tasks.filter(
           (task) =>
             task.project === project.id &&

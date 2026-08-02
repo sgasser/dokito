@@ -1,7 +1,7 @@
 import { projectStatusLabel } from "../../core/project-model";
 import { documentStateLabel } from "../../core/state-model";
 import { taskStatusLabel, taskStatusMatches } from "../../core/task-model";
-import { explorerDocuments } from "../kinds";
+import { explorerDocuments, resourceExplorerLabel } from "../kinds";
 import { routes, withQuery } from "../routes";
 import { loadEachArea } from "./areas";
 import { WorkspaceSnapshot, type WorkspaceSnapshotInput } from "./snapshot";
@@ -47,7 +47,7 @@ export async function paletteIndex(
   for (const { areaId, projects, tasks, documents } of loaded) {
     for (const project of projects) {
       entries.push({
-        title: project.title,
+        title: project.id,
         meta: projectStatusLabel(project.status),
         kind: "Project",
         ...(project.status === "active" ? { live: true as const } : {}),
@@ -72,7 +72,7 @@ export async function paletteIndex(
     // files out avoids duplicate results that open the wrong representation.
     for (const document of explorerDocuments(documents.documents)) {
       entries.push({
-        title: document.title,
+        title: resourceExplorerLabel(document.relativePath),
         meta:
           document.state === "archived"
             ? `${documentStateLabel(document.state)} · ${document.relativePath}`

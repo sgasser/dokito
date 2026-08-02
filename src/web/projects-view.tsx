@@ -91,7 +91,7 @@ function Row({ project }: { project: WebProjectSummary }) {
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-doc font-[550] tracking-[-0.008em] text-ink rail:text-ui">
-          {project.title}
+          {project.id}
         </span>
         <span className="truncate text-ui-sm leading-[1.4] text-muted">
           {project.outcome ?? "No outcome written yet."}

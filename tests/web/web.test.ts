@@ -442,7 +442,7 @@ describe("Web", () => {
       'href="/area/product/projects/launch">Launch the product</a>',
     );
     expect(taskPage).toContain(">Resources</p>");
-    expect(taskPage).toContain(">Architecture</span>");
+    expect(taskPage).toContain(">architecture</span>");
     expect(taskPage).not.toContain("data-derived");
 
     const resourcePage = await (
@@ -452,8 +452,10 @@ describe("Web", () => {
         ),
       )
     ).text();
+    // The heading keeps the document's own title; the list beside it names
+    // the file, which is what a link resolves.
     expect(resourcePage).toContain(">Markdown torture</h1>");
-    expect(resourcePage).toContain(">My notes</span>");
+    expect(resourcePage).toContain(">my notes</span>");
     const notePath = path.join(workspace.areaRoot, "resources", "my notes.md");
     await writeFile(
       notePath,
@@ -468,7 +470,7 @@ describe("Web", () => {
         ),
       )
     ).text();
-    expect(currentPage).toContain(">My notes</span>");
+    expect(currentPage).toContain(">my notes</span>");
     expect(currentPage).toContain(">Related</p>");
   });
 
@@ -934,7 +936,7 @@ describe("Web", () => {
       url: "/area/product/tasks/01K1ABCXYZ0000000000000000",
     });
     expect(entries).toContainEqual({
-      title: "Archived pricing",
+      title: "pricing",
       meta: "Archived · resources/pricing.md",
       kind: "Resource",
       url: "/area/product/resources/resources/pricing.md?archived=1",
