@@ -32,11 +32,7 @@ describe("The --cwd option", () => {
   );
 });
 
-/**
- * Scope resolution reads a directory two ways, and only the second one uses
- * Git. Reporting Git's own failure named a mechanism the reader never chose
- * and left out the subject, which is whether any Area covers this directory.
- */
+/** Git is the second of two ways in, so its failure named the wrong subject. */
 describe("Resolving no Area", () => {
   test("names Areas rather than Git, and where to look", async () => {
     await expect(
@@ -47,10 +43,7 @@ describe("Resolving no Area", () => {
   });
 });
 
-/**
- * A named configuration file that is missing used to read as an empty registry,
- * so a typed path answered with a plausible "no Areas registered".
- */
+/** A missing named file used to answer with a plausible "no Areas registered". */
 describe("A named configuration file", () => {
   test.each(["areas", "projects", "tasks"])(
     "must exist before %s reports an empty registry",

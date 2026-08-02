@@ -89,11 +89,8 @@ function areasHuman(result: Awaited<ReturnType<typeof listAreas>>): string {
 }
 
 /**
- * A named configuration file that is not there is a typed path, not an empty
- * registry: reading it as "no Areas registered" hides the mistake behind a
- * plausible answer. Checked per command, after its own options, so a usage
- * error still comes first. `register` writes the file, and `web` shows an
- * empty registry on screen rather than in a sentence.
+ * A named file that is missing is a typed path, not an empty registry. Called
+ * per command after its own options, so a usage error still comes first.
  */
 async function requireNamedConfig(global: GlobalOptions): Promise<void> {
   if (global.configNamed && !(await pathExists(global.configPath))) {

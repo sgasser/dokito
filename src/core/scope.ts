@@ -183,11 +183,8 @@ export async function resolveScope(input: ScopeInput): Promise<AreaScope> {
     };
   }
 
-  /*
-   * Falling through to the Git path means no Area manifest was found above the
-   * working directory. Reporting only Git's own failure names the second of two
-   * resolution paths and never mentions Areas, which is the actual subject.
-   */
+  // Git is the second of two ways in, so its own failure names a mechanism
+  // rather than the subject: whether any Area covers this directory.
   const codeRoot = await gitWorktreeRoot(cwd).catch((error) => {
     if (
       error instanceof DokitoError &&
