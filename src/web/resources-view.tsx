@@ -324,9 +324,7 @@ function RelatedRows({
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="min-w-0 flex-1 truncate text-ui-md leading-[1.4] text-ink">
-                {entry.kind === "resource"
-                  ? labels.get(entry.relativePath)
-                  : documentLabel(entry)}
+                {labels.get(entry.relativePath)}
               </span>
               {entry.state !== "active" ? (
                 <span className="flex-none rounded-[4px] bg-rail px-1.5 py-px text-meta leading-none text-muted">

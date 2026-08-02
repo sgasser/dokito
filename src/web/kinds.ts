@@ -113,21 +113,23 @@ export function documentLabel(document: {
  * folders, and a list without the tree around it would show the same word
  * twice; each repeated name therefore carries the folder that separates them.
  */
-export function listLabels<T extends { relativePath: string }>(
-  documents: readonly T[],
-): Map<string, string> {
+export function listLabels<
+  T extends { kind: WebDocumentKind; relativePath: string; title: string },
+>(documents: readonly T[]): Map<string, string> {
   const counts = new Map<string, number>();
   for (const document of documents) {
-    const label = resourceExplorerLabel(document.relativePath);
+    const label = documentLabel(document);
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return new Map(
     documents.map((document) => {
-      const label = resourceExplorerLabel(document.relativePath);
+      const label = documentLabel(document);
+      const repeated =
+        document.kind === "resource" && (counts.get(label) ?? 0) > 1;
       const segments = document.relativePath.replace(/\.md$/, "").split("/");
       return [
         document.relativePath,
-        (counts.get(label) ?? 0) > 1 ? segments.slice(-2).join("/") : label,
+        repeated ? segments.slice(-2).join("/") : label,
       ];
     }),
   );
