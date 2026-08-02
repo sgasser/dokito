@@ -439,7 +439,7 @@ describe("Web", () => {
       )
     ).text();
     expect(taskPage).toContain(
-      'href="/area/product/projects/launch">Launch the product</a>',
+      'href="/area/product/projects/launch">launch</a>',
     );
     expect(taskPage).toContain(">Resources</p>");
     expect(taskPage).toContain(">architecture</span>");

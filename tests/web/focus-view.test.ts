@@ -244,7 +244,8 @@ describe("The Focus route", () => {
       await request(new Request("http://127.0.0.1/focus?areas=paused"))
     ).text();
     expect(html).toContain("Rewrite the opening of the second essay");
-    expect(html).toContain("Ship the essay series");
+    // The Task keeps its heading; the Project it belongs to is named by file.
+    expect(html).toContain("essays");
   });
 
   test("says how much open work it is leaving out", async () => {
