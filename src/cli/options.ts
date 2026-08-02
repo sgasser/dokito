@@ -9,6 +9,8 @@ export interface GlobalOptions {
   version: boolean;
   cwd: string;
   configPath: string;
+  /** The caller named the configuration file, so a missing one is a mistake. */
+  configNamed: boolean;
   positionals: string[];
   values: Map<string, string>;
   booleans: Set<string>;
@@ -63,6 +65,9 @@ export function parseCli(argv: string[]): GlobalOptions {
       version: booleans.has("version"),
       cwd: path.resolve(values.get("cwd") ?? process.cwd()),
       configPath: defaultConfigPath(values.get("config")),
+      configNamed:
+        values.get("config") !== undefined ||
+        process.env.DOKITO_CONFIG_PATH !== undefined,
       positionals,
       values,
       booleans,

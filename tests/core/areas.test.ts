@@ -203,6 +203,38 @@ describe("Areas", () => {
     });
   });
 
+  test("counts a single Repository in the singular", async () => {
+    const fixture = await setup();
+    const root = path.join(fixture.root, "solo-area");
+    await mkdir(root, { recursive: true });
+    await writeFile(
+      path.join(root, "dokito.yaml"),
+      "version: 1\nid: solo\nname: Solo\n\nrepositories:\n  only:\n    github: example/only\n",
+      "utf8",
+    );
+    await writeFile(path.join(root, "context.md"), "# Solo\n", "utf8");
+    await registerTestArea({
+      cwd: fixture.root,
+      target: root,
+      id: "solo",
+      name: "Solo",
+      configPath: fixture.configPath,
+    });
+
+    const process = Bun.spawn(
+      ["bun", "run", dokitoCli, "--config", fixture.configPath, "areas"],
+      { cwd: fixture.root, stdout: "pipe", stderr: "pipe" },
+    );
+    const [exitCode, stdout] = await Promise.all([
+      process.exited,
+      new Response(process.stdout).text(),
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("(1 Repository)");
+    expect(stdout).toContain("(3 Repositories)");
+  });
+
   test("lists registered Areas through the JSON CLI from unscoped work", async () => {
     const fixture = await setup();
     const process = Bun.spawn(

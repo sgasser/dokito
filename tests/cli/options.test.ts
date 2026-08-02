@@ -27,11 +27,46 @@ describe("The --cwd option", () => {
   test.each(["context", "validate"])(
     "still moves %s to the named directory",
     async (command) => {
-      await expect(run(command)).rejects.toThrow(
-        "The current directory is not inside a Git worktree.",
-      );
+      await expect(run(command)).rejects.toThrow("No Area here: '/'");
     },
   );
+});
+
+/**
+ * Scope resolution reads a directory two ways, and only the second one uses
+ * Git. Reporting Git's own failure named a mechanism the reader never chose
+ * and left out the subject, which is whether any Area covers this directory.
+ */
+describe("Resolving no Area", () => {
+  test("names Areas rather than Git, and where to look", async () => {
+    await expect(
+      runCli(
+        parseCli(["--config", "/nonexistent.yaml", "--cwd", "/", "context"]),
+      ),
+    ).rejects.toMatchObject({ code: "area_not_resolved" });
+  });
+});
+
+/**
+ * A named configuration file that is missing used to read as an empty registry,
+ * so a typed path answered with a plausible "no Areas registered".
+ */
+describe("A named configuration file", () => {
+  test.each(["areas", "projects", "tasks"])(
+    "must exist before %s reports an empty registry",
+    async (command) => {
+      await expect(
+        runCli(parseCli(["--config", "/nonexistent.yaml", command])),
+      ).rejects.toMatchObject({ code: "config_not_found" });
+    },
+  );
+
+  test("is still created by register", async () => {
+    // register writes the file, so a missing one is the normal first run.
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "register", "/tmp"])),
+    ).rejects.toMatchObject({ code: "area_manifest_not_found" });
+  });
 });
 
 describe("Dokito Web subcommands", () => {

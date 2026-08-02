@@ -31,6 +31,11 @@ The configuration path comes from `--config`, `DOKITO_CONFIG_PATH`,
 that order. It contains absolute Area paths and Area-relative Repository paths
 for this machine and must not be committed.
 
+A path named through `--config` or `DOKITO_CONFIG_PATH` must exist before
+`areas`, `projects`, `tasks`, and `resolve` read it; otherwise a mistyped path
+would answer with an empty registry instead of `config_not_found`. `register`
+creates the file, so it accepts a path that is not there yet.
+
 ```yaml
 areas:
   product:
@@ -353,3 +358,8 @@ workflow for agents.
 Dokito reports malformed data, unsafe paths, unresolved or ambiguous Areas and
 Repositories, missing files, and oversized context as explicit errors. Use
 `--json` when another program needs stable error codes and details.
+
+A directory that no Area covers fails with `area_not_resolved`, which names
+both resolution paths: no `dokito.yaml` above it, and no Git checkout of a
+registered Repository. This is the normal outcome in an agent workspace, and
+`dokito areas` lists what is available instead.
