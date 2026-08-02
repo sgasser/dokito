@@ -28,6 +28,24 @@ function firstProseLine(lines: readonly string[]): number {
   return closing < 0 ? 0 : closing + 1;
 }
 
+/**
+ * Where the text a reader is shown begins. `skipHeading` is for a document
+ * whose leading H1 the reader removes: matching a line nobody can see sends
+ * the reader to a page that does not contain the words they searched for.
+ */
+function firstShownLine(
+  lines: readonly string[],
+  skipHeading: boolean,
+): number {
+  let index = firstProseLine(lines);
+  while (skipHeading && lines[index]?.trim() === "") {
+    index += 1;
+  }
+  return skipHeading && lines[index]?.trimStart().startsWith("# ")
+    ? index + 1
+    : index;
+}
+
 interface Excerpt {
   snippet: string;
   matchStart: number;
@@ -67,10 +85,30 @@ function excerpt(line: string, index: number, length: number): Excerpt {
  * Search content already held by a caller. Web uses this against its
  * request-local document snapshot.
  */
+/**
+ * The document's opening line, for a hit its name earned rather than its body.
+ * It goes through the same compaction and cap as any other snippet.
+ */
+export function openingExcerpt(content: string): SearchContentResult {
+  const lines = content.split(/\r?\n/);
+  const line =
+    lines
+      .slice(firstShownLine(lines, true))
+      .map(compact)
+      .find((value) => value.length > 0) ?? "";
+  return {
+    line: 0,
+    snippet: line.slice(0, SNIPPET_LENGTH),
+    matchStart: 0,
+    matchLength: 0,
+  };
+}
+
 export function searchDocumentContent(
   content: string,
   query: string,
   perDocument = false,
+  skipHeading = false,
 ): SearchContentResult[] {
   const normalizedQuery = query.trim();
   fail(
@@ -83,7 +121,11 @@ export function searchDocumentContent(
   const matches: SearchContentResult[] = [];
   let heading: SearchContentResult | undefined;
 
-  for (let index = firstProseLine(lines); index < lines.length; index += 1) {
+  for (
+    let index = firstShownLine(lines, skipHeading);
+    index < lines.length;
+    index += 1
+  ) {
     const raw = lines[index] ?? "";
     const line = compact(raw);
     const match = line.toLocaleLowerCase().indexOf(needle);

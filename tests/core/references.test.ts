@@ -103,7 +103,7 @@ describe("Link warnings", () => {
       });
       await writeFile(
         path.join(fixture.areaRoot, "resources", folder, "overview.md"),
-        `# ${folder}\n`,
+        "# overview\n",
         "utf8",
       );
     }
@@ -125,7 +125,7 @@ describe("Link warnings", () => {
       });
       await writeFile(
         path.join(fixture.areaRoot, "resources", folder, "overview.md"),
-        `# ${folder}\n`,
+        "# overview\n",
         "utf8",
       );
     }
@@ -137,6 +137,51 @@ describe("Link warnings", () => {
 
     expect(
       (await warningsOf(fixture)).filter((entry) => entry.includes("overview")),
+    ).toEqual([]);
+  });
+
+  /**
+   * The reader shows the filename as the heading, so an H1 saying anything else
+   * appears nowhere. Bold or linked wording is the same sentence, so the
+   * comparison reads the plain text.
+   */
+  test("reports an H1 the filename does not say", async () => {
+    const fixture = await setup();
+    await writeFile(
+      path.join(fixture.areaRoot, "resources", "Runbook.md"),
+      "# **Runbook**\n\nSame words, so nothing is hidden.\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(fixture.areaRoot, "resources", "Platform overview.md"),
+      "# How we run the platform\n\nA sentence only the H1 carries.\n",
+      "utf8",
+    );
+
+    const warnings = (await warningsOf(fixture)).filter(
+      (entry) =>
+        entry.includes("H1 its filename does not say") &&
+        (entry.includes("Runbook") || entry.includes("Platform overview")),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("resources/Platform overview.md");
+  });
+
+  /**
+   * Only the heading the reader removes counts. A section heading further down
+   * is shown, and a closing run of hashes is the same words.
+   */
+  test("weighs the leading heading alone", async () => {
+    const fixture = await setup();
+    await writeFile(
+      path.join(fixture.areaRoot, "resources", "Runbook.md"),
+      "# Runbook #\n\n## A section the reader shows\n",
+      "utf8",
+    );
+
+    expect(
+      (await warningsOf(fixture)).filter((entry) => entry.includes("Runbook")),
     ).toEqual([]);
   });
 

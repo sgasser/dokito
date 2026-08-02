@@ -8,6 +8,7 @@ import type { WebDocumentRef, WebTasksDashboardData } from "./data";
 import { FilterMenu } from "./filters";
 import { formatDue } from "./format";
 import { CloseIcon } from "./icons";
+import { listLabels } from "./kinds";
 import { groupWorkItems, workItemGroup } from "./model";
 import { routes } from "./routes";
 import { cx, FILTER, SHELL } from "./ui";
@@ -38,6 +39,7 @@ function TaskResources({
   if (resources.length === 0) {
     return null;
   }
+  const labels = listLabels(resources);
   return (
     <>
       <p className="mt-[22px] mb-[7px] text-ui-xs font-semibold tracking-[0.01em] text-muted">
@@ -50,7 +52,7 @@ function TaskResources({
           key={resource.relativePath}
         >
           <span className="min-w-0 flex-1 truncate text-ui-md text-ink">
-            {resource.title}
+            {labels.get(resource.relativePath)}
           </span>
         </a>
       ))}

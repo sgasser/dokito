@@ -8,7 +8,7 @@ import type {
 import { FilterMenu } from "./filters";
 import { previewBlocks, splitSnippet } from "./format";
 import { SearchIcon } from "./icons";
-import { KIND_LABELS } from "./kinds";
+import { documentLabel, KIND_LABELS } from "./kinds";
 import { routes } from "./routes";
 import { cx, FILTER, SHELL } from "./ui";
 import { resourcesUrl, searchUrl } from "./urls";
@@ -107,7 +107,7 @@ function SearchPreview({ data }: SearchViewProps) {
           data-navigation-focus=""
           tabIndex={-1}
         >
-          {document.title}
+          {documentLabel(document)}
         </h2>
         <p className="mt-2 font-mono text-ui-xs text-muted">
           {document.areaName} · {document.relativePath}
@@ -347,8 +347,9 @@ export function SearchView({ data }: SearchViewProps) {
                       <span className="min-w-0 flex-1 truncate font-mono text-micro text-muted">
                         {/* Every document is Markdown, so the extension
                             repeated on every row without distinguishing. */}
-                        {hit.areaName} · {hit.path.replace(/\.md$/, "")} · line{" "}
-                        {hit.line}
+                        {hit.areaName} · {hit.path.replace(/\.md$/, "")}
+                        {/* A hit the name earned sits on no line of its own. */}
+                        {hit.line > 0 ? ` · line ${hit.line}` : ""}
                       </span>
                       <span className="flex-none text-meta text-muted italic">
                         {hit.reason}

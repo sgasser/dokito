@@ -5,6 +5,7 @@ import { taskStatusMatches } from "../core/task-model";
 import type { WebDocumentRef, WebProjectDashboardData } from "./data";
 import { formatDue } from "./format";
 import { BackIcon, ChevronIcon } from "./icons";
+import { resourceExplorerLabel } from "./kinds";
 import { MarkdownContent, markdownImageHref } from "./markdown";
 import { workItemGroup } from "./model";
 import { routes } from "./routes";
@@ -129,7 +130,7 @@ function ProjectDetails({
             key={resource.relativePath}
           >
             <span className="min-w-0 flex-1 truncate text-[14.5px] text-ink rail:text-ui">
-              {resource.title}
+              {resourceExplorerLabel(resource.relativePath)}
             </span>
             <span className="hidden flex-none font-mono text-meta text-muted roomy:block">
               {resource.relativePath.replace(/\.md$/, "")}

@@ -26,6 +26,7 @@ import {
 import { listAreaTasks } from "../../core/tasks";
 import type { AreaManifest, LocalConfig, TaskDocument } from "../../core/types";
 import { ownValue } from "../../core/yaml";
+import { documentLabel } from "../kinds";
 import { buildWebWorkItems } from "../work-items";
 import type {
   WebDocument,
@@ -79,7 +80,7 @@ const DOCUMENT_KIND_ORDER: Record<WebDocumentKind, number> = {
 function compareDocuments(a: WebDocument, b: WebDocument): number {
   return (
     DOCUMENT_KIND_ORDER[a.kind] - DOCUMENT_KIND_ORDER[b.kind] ||
-    a.title.localeCompare(b.title) ||
+    documentLabel(a).localeCompare(documentLabel(b)) ||
     a.relativePath.localeCompare(b.relativePath)
   );
 }

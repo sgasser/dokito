@@ -215,8 +215,13 @@ describe("File-first model workflow", () => {
     expect(result.json.data?.warnings).toEqual(
       expect.arrayContaining([
         expect.stringContaining("unknown Resource state 'dormant'"),
-        expect.stringContaining("warning.md has no H1 heading"),
         expect.stringContaining("unresolved document link 'missing.md'"),
+      ]),
+    );
+    // A Resource is named by its file, so no warning asks it for a heading.
+    expect(result.json.data?.warnings).toEqual(
+      expect.not.arrayContaining([
+        expect.stringContaining("warning.md has no H1 heading"),
       ]),
     );
   });

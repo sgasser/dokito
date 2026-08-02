@@ -260,7 +260,8 @@ describe("Search across Areas", () => {
     });
     await writeFile(
       path.join(workspace.areaRoot, "resources", "pricing.md"),
-      "---\nstate: archived\n---\n\n# Archived pricing\n",
+      // The query has to meet text the reader shows, not a hidden heading.
+      "---\nstate: archived\n---\n\n# Archived pricing\n\nSuperseded, archived.\n",
       "utf8",
     );
     const request = createWebRequestHandler({
@@ -272,7 +273,7 @@ describe("Search across Areas", () => {
       )
     ).text();
 
-    expect(html).toMatch(/Archived pricing[\s\S]*>Archived<\/span>/);
+    expect(html).toMatch(/pricing[\s\S]*>Archived<\/span>/);
     expect(html).toContain(
       'href="/area/product/resources/resources/pricing.md?archived=1"',
     );

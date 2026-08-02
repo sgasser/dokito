@@ -13,7 +13,12 @@ import {
   shortestLinkForm,
 } from "./links";
 import { loadProjects, loadTasks } from "./manifests";
-import { frontmatterField, headingTitle } from "./markdown";
+import {
+  frontmatterField,
+  headingTitle,
+  leadingHeading,
+  plainText,
+} from "./markdown";
 import {
   hasReferencePrefix,
   isRelativeTarget,
@@ -35,7 +40,6 @@ interface ValidationCollection {
 
 interface ValidationDocument {
   relativePath: string;
-  title: string;
   content: string;
 }
 
@@ -271,14 +275,23 @@ export async function validateArea(
         `${resource.path} declares unknown Resource state '${state}'; Dokito reads it as active.`,
       );
     }
-    if (!headingTitle(content)) {
+    /*
+     * The reader shows the filename as the heading, so a leading H1 saying
+     * anything else appears nowhere. Reporting it keeps the sentence from
+     * going missing without a word.
+     */
+    const heading = leadingHeading(content);
+    if (
+      heading !== undefined &&
+      plainText(heading).toLocaleLowerCase() !==
+        path.basename(resource.path, ".md").toLocaleLowerCase()
+    ) {
       warnings.push(
-        `${resource.path} has no H1 heading; the Web view falls back to its filename.`,
+        `${resource.path} has an H1 its filename does not say, and only the filename is shown.`,
       );
     }
     resourceDocuments.push({
       relativePath: resource.path,
-      title: headingTitle(content) ?? path.basename(resource.path, ".md"),
       content,
     });
   }
@@ -286,17 +299,14 @@ export async function validateArea(
   const documents: ValidationDocument[] = [
     {
       relativePath: "context.md",
-      title: headingTitle(context) ?? "context",
       content: context,
     },
     ...projects.map((project) => ({
       relativePath: project.relativePath,
-      title: project.title,
       content: project.content,
     })),
     ...tasks.map((task) => ({
       relativePath: task.relativePath,
-      title: task.title,
       content: task.content,
     })),
     ...resourceDocuments,

@@ -5,10 +5,10 @@ authoritative and must be preserved by targeted edits.
 
 Every Project and Task needs a `#` H1 somewhere in its body, and the first one
 becomes the document title. A Project or Task without one fails validation for
-the whole Area; in `context.md` and Resources a missing H1 is only a warning
-and the Web view falls back to the filename. An H1 that appears solely inside a
-fenced code block does not count, and demoting the real one to `##` invalidates
-the document.
+the whole Area; in `context.md` a missing H1 is only a warning and the Web view
+falls back to the filename. A Resource is named by its file instead. An H1
+that appears solely inside a fenced code block does not count, and
+demoting the real one to `##` invalidates the document.
 
 ## Area
 
@@ -72,16 +72,16 @@ move detail into Resources.
 Resource identity is its path below `resources/`. Nested directories and spaces
 are allowed and the filename ends in `.md`.
 
-Choose a filename that is unique within the Area, and keep the H1 in agreement
-with it. Folders organize Resources but do not distinguish them: a link written
-from a Task or a Project cannot see the folder, so `Platform overview.md` works
-where a second `platform/overview.md` does not. Name the file the way you would
-say it aloud.
+Choose a filename that is unique within the Area and name the file the way you
+would say it aloud: it is what links resolve and what every screen shows,
+heading included. Folders organize Resources but do not distinguish them: a
+link written from a Task or a Project cannot see the folder, so
+`Platform overview.md` works where a second `platform/overview.md` does not.
+`dokito validate` reports an H1 that says something the filename does not, so
+put that wording in the filename or the body.
 
 ```markdown
-# Architecture
-
-Reference material.
+Reference material, in whatever shape suits it.
 ```
 
 A Resource may declare `state: archived`. Omit `state` for active Resources.

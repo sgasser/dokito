@@ -1,8 +1,9 @@
 import { frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
-import { searchDocumentContent } from "../../core/search";
+import { openingExcerpt, searchDocumentContent } from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
+import { documentLabel } from "../kinds";
 import { loadEachArea } from "./areas";
 import { WorkspaceSnapshot, type WorkspaceSnapshotInput } from "./snapshot";
 import type {
@@ -56,7 +57,9 @@ function hitReason(document: WebDocument, query: string): WebSearchReason {
   if (document.kind === "project" && status === "active") {
     return "active";
   }
-  return document.title.toLocaleLowerCase().includes(query)
+  // Ranked and badged against the name on the row, not a heading the reader
+  // never sees.
+  return documentLabel(document).toLocaleLowerCase().includes(query)
     ? "title"
     : "content";
 }
@@ -127,18 +130,28 @@ export async function loadSearchView(
           if (document.unreadable) {
             return [];
           }
-          const result = searchDocumentContent(
-            document.content,
-            query,
-            true,
-          )[0];
+          /*
+           * A Resource is named by its file and needs no H1, so a name the body
+           * never repeats would have no way into Search while the palette still
+           * matched it.
+           */
+          const result =
+            searchDocumentContent(
+              document.content,
+              query,
+              true,
+              document.kind === "resource",
+            )[0] ??
+            (documentLabel(document).toLocaleLowerCase().includes(needle)
+              ? openingExcerpt(document.content)
+              : undefined);
           return result
             ? [
                 {
                   areaId: document.areaId,
                   areaName: document.areaName,
                   path: document.relativePath,
-                  title: document.title,
+                  title: documentLabel(document),
                   kind: document.kind,
                   type: searchType(document),
                   meta: hitMeta(document),

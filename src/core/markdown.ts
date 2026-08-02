@@ -60,6 +60,23 @@ export function plainText(value: string): string {
 }
 
 /** The prose of a document: frontmatter and the leading H1 removed. */
+/**
+ * The heading `documentBody` removes, so validation can ask for exactly that
+ * one. `headingTitle` answers a different question: it finds the first H1
+ * anywhere, which for a Resource would report a section as a hidden title.
+ */
+export function leadingHeading(content: string): string | undefined {
+  const body = stripFrontmatter(content).replace(/^\s*\r?\n/, "");
+  const match = LEADING_H1.exec(body)?.[0];
+  return (
+    match
+      ?.replace(/^#\s+/, "")
+      // An ATX heading may close with its own run of hashes.
+      .replace(/\s+#+\s*$/, "")
+      .trim() || undefined
+  );
+}
+
 export function documentBody(content: string): string {
   const withoutFrontmatter = stripFrontmatter(content).replace(/^\s*\r?\n/, "");
   return withoutFrontmatter.replace(LEADING_H1, "").trim();

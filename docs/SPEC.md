@@ -256,12 +256,13 @@ state: archived
 |---|---|---|
 | identity | yes | normalized Area-relative `.md` path below `resources/` |
 | `state` | no | `active` or `archived`; omission means active |
-| title | no | first H1, otherwise derived from the filename |
+| name | yes | the filename, shown as the heading and in every list |
 | content | no | free-form Markdown |
 
-Frontmatter and an H1 are optional. Unknown states are read as active, and a
-missing title is derived from the filename; both produce validation warnings.
-Resources use Markdown links rather than typed relation frontmatter.
+Frontmatter and an H1 are optional: a Resource is named by its file, in every
+list and as its heading. An unknown state is read as active and reported as a
+warning. Resources use
+Markdown links rather than typed relation frontmatter.
 
 ## Task model
 
@@ -428,7 +429,8 @@ work is real. Its warning states that the reference is unresolved rather than
 that the Task was skipped.
 
 Free-form conventions do not make an Area invalid. An unknown Area or Resource
-state, a missing H1 in `context.md` or a Resource, and an unresolved, ambiguous
+state, a missing H1 in `context.md`, a Resource whose H1 says something its
+filename does not, and an unresolved, ambiguous
 or relative link produce warnings while the command succeeds. Structured output
 returns the Area, context state and byte count, collection paths and counts,
 and warnings.

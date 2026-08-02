@@ -87,7 +87,52 @@ interface MutableResourceDirectory<T> {
  */
 export function resourceExplorerLabel(relativePath: string): string {
   const filename = relativePath.split("/").at(-1) ?? relativePath;
-  return filename.replace(/\.md$/, "");
+  // `resources/.md` is a legal file whose name says nothing; the path does.
+  return filename.replace(/\.md$/, "") || relativePath;
+}
+
+/**
+ * How a document is named wherever it is listed or linked: by the name a reader
+ * would say. For a Resource that is its filename, which is also what a link
+ * resolves, so list and link agree. A Project is filed under a slug, a Task
+ * under a ULID and the Area file is called `context`; none of those names the
+ * thing, so those keep their heading.
+ */
+export function documentLabel(document: {
+  kind: WebDocumentKind;
+  relativePath: string;
+  title: string;
+}): string {
+  return document.kind === "resource"
+    ? resourceExplorerLabel(document.relativePath)
+    : document.title;
+}
+
+/**
+ * Labels for one flat list. Two documents may share a filename in different
+ * folders, and a list without the tree around it would show the same word
+ * twice; each repeated name therefore carries the folder that separates them.
+ */
+export function listLabels<
+  T extends { kind: WebDocumentKind; relativePath: string; title: string },
+>(documents: readonly T[]): Map<string, string> {
+  const counts = new Map<string, number>();
+  for (const document of documents) {
+    const label = documentLabel(document);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return new Map(
+    documents.map((document) => {
+      const label = documentLabel(document);
+      const repeated =
+        document.kind === "resource" && (counts.get(label) ?? 0) > 1;
+      const segments = document.relativePath.replace(/\.md$/, "").split("/");
+      return [
+        document.relativePath,
+        repeated ? segments.slice(-2).join("/") : label,
+      ];
+    }),
+  );
 }
 
 /**

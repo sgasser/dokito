@@ -373,7 +373,7 @@ describe("Web", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain("Dokito — Resources");
-    expect(html).toContain(">Reader test</h1>");
+    expect(html).toContain(">reader-test</h1>");
     expect(html).toContain("<strong>important</strong>");
     expect(html).toContain("<code>code</code>");
     expect(html).toContain('class="contains-task-list"');
@@ -442,7 +442,7 @@ describe("Web", () => {
       'href="/area/product/projects/launch">Launch the product</a>',
     );
     expect(taskPage).toContain(">Resources</p>");
-    expect(taskPage).toContain(">Architecture</span>");
+    expect(taskPage).toContain(">architecture</span>");
     expect(taskPage).not.toContain("data-derived");
 
     const resourcePage = await (
@@ -452,8 +452,10 @@ describe("Web", () => {
         ),
       )
     ).text();
-    expect(resourcePage).toContain(">Markdown torture</h1>");
-    expect(resourcePage).toContain(">My notes</span>");
+    // A Resource is named by its file, heading included, so no second name
+    // has to be kept in step with it.
+    expect(resourcePage).toContain(">markdown</h1>");
+    expect(resourcePage).toContain(">my notes</span>");
     const notePath = path.join(workspace.areaRoot, "resources", "my notes.md");
     await writeFile(
       notePath,
@@ -468,7 +470,7 @@ describe("Web", () => {
         ),
       )
     ).text();
-    expect(currentPage).toContain(">My notes</span>");
+    expect(currentPage).toContain(">my notes</span>");
     expect(currentPage).toContain(">Related</p>");
   });
 
@@ -781,7 +783,7 @@ describe("Web", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain('data-search-preview=""');
-    expect(html).toContain(">Product</h2>");
+    expect(html).toContain(">product</h2>");
     expect(html).toContain("helps small teams");
     expect(html).toContain("data-search-hits");
     expect(html).toContain("<!doctype html>");
@@ -813,6 +815,75 @@ describe("Web", () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
+  /**
+   * A Resource is named by its file and needs no H1, so a name the body never
+   * repeats would otherwise be unreachable from Search while the palette still
+   * found it.
+   */
+  test("finds a Resource by the name on its row", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "Platform overview.md"),
+      "How the platform is operated.",
+      "utf8",
+    );
+
+    const results = await loadSearchView({
+      configPath: workspace.configPath,
+      area: "product",
+      query: "platform overview",
+    });
+
+    expect(results.hits).toHaveLength(1);
+    expect(results.hits[0]).toMatchObject({
+      path: "resources/Platform overview.md",
+      title: "Platform overview",
+      reason: "title",
+      snippet: "How the platform is operated.",
+    });
+  });
+
+  /**
+   * The reader removes a Resource's leading H1, so matching it would send a
+   * reader to a page that does not contain the words they searched for. The
+   * snippet of a name match has to clear the frontmatter for the same reason.
+   */
+  test("searches only what the reader shows", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "Platform overview.md"),
+      "---\nstate: active\n---\n\n# A hidden heading\n\nThe body.\n",
+      "utf8",
+    );
+    const search = async (query: string) =>
+      (
+        await loadSearchView({
+          configPath: workspace?.configPath ?? "",
+          area: "product",
+          query,
+        })
+      ).hits;
+
+    expect(await search("hidden heading")).toHaveLength(0);
+    const byName = await search("platform overview");
+    expect(byName).toHaveLength(1);
+    expect(byName[0]?.snippet).toBe("The body.");
+  });
+
   test("ranks the complete search set before applying the result limit", async () => {
     workspace = await createTestWorkspace();
     await registerTestArea({
@@ -836,8 +907,9 @@ describe("Web", () => {
       ),
     );
     await writeFile(
-      path.join(resourcesRoot, "zz-best-result.md"),
-      "# Needle exact title\n\nThis is the best result.",
+      // Last by name, first by rank: the needle is in the name a reader sees.
+      path.join(resourcesRoot, "zz needle exact name.md"),
+      "The needle appears here as well; the name is what ranks it first.",
       "utf8",
     );
 
@@ -870,7 +942,7 @@ describe("Web", () => {
     );
 
     expect(results.hits).toHaveLength(60);
-    expect(results.hits[0]?.path).toBe("resources/zz-best-result.md");
+    expect(results.hits[0]?.path).toBe("resources/zz needle exact name.md");
     expect(allFacet?.count).toBe(66);
     expect(resourcesFacet?.count).toBe(66);
     expect(deepLinked.preview?.hit.path).toBe(requestedPath);
@@ -934,7 +1006,7 @@ describe("Web", () => {
       url: "/area/product/tasks/01K1ABCXYZ0000000000000000",
     });
     expect(entries).toContainEqual({
-      title: "Archived pricing",
+      title: "pricing",
       meta: "Archived · resources/pricing.md",
       kind: "Resource",
       url: "/area/product/resources/resources/pricing.md?archived=1",

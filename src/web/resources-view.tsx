@@ -15,12 +15,13 @@ import { FilterMenu } from "./filters";
 import { formatAge, formatBytes } from "./format";
 import { ChevronIcon } from "./icons";
 import {
+  documentLabel,
   EXPLORER_GROUPS,
   explorerTree,
   KIND_DOTS,
   KIND_LABELS,
+  listLabels,
   type ResourceExplorerNode,
-  resourceExplorerLabel,
   resourceExplorerTree,
 } from "./kinds";
 import { MarkdownContent, markdownImageHref } from "./markdown";
@@ -115,7 +116,7 @@ function ExplorerDocumentEntry({
       {...(active ? { "aria-current": "page" as const } : {})}
     >
       <span className="min-w-0 flex-1 truncate text-left text-doc tracking-[-0.008em] rail:text-ui">
-        {tree ? resourceExplorerLabel(document.relativePath) : document.title}
+        {documentLabel(document)}
       </span>
       {document.state !== "active" ? (
         <span className="flex-none text-meta text-muted">
@@ -300,8 +301,9 @@ function RelatedRows({
   includeArchived: boolean;
   related: WebRelatedDocument[];
 }) {
+  const labels = listLabels(related);
   return (
-    <div className="-mx-2 flex flex-col gap-px">
+    <div className="-mx-2 flex flex-col gap-px" data-related-rows="">
       {related.map((entry) => (
         <a
           className="flex w-full items-start gap-[9px] rounded-control px-2 py-1.5 text-left hover:bg-rail"
@@ -322,7 +324,7 @@ function RelatedRows({
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="min-w-0 flex-1 truncate text-ui-md leading-[1.4] text-ink">
-                {entry.title}
+                {labels.get(entry.relativePath)}
               </span>
               {entry.state !== "active" ? (
                 <span className="flex-none rounded-[4px] bg-rail px-1.5 py-px text-meta leading-none text-muted">
@@ -477,7 +479,7 @@ function DocumentReader({ data }: ResourcesViewProps) {
             data-document-title=""
             tabIndex={-1}
           >
-            {document.title}
+            {documentLabel(document)}
           </h1>
           <p className="mt-[9px] flex flex-wrap items-center gap-2 text-ui-sm text-muted">
             {/* The kind is named only where it distinguishes: on the Area file
