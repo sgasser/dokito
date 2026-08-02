@@ -87,6 +87,59 @@ describe("Rendered Markdown", () => {
     expect(html).toContain(">my notes</span>");
   });
 
+  /**
+   * The page heading is the filename now, so an H1 that says something else is
+   * the only place that sentence exists. Dropping it as a duplicate erased it.
+   */
+  test("keeps an H1 that the filename does not already say", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    for (const [file, heading] of [
+      ["Platform overview.md", "How we run the platform"],
+      ["Runbook.md", "Runbook"],
+    ]) {
+      await writeFile(
+        path.join(workspace.areaRoot, "resources", file as string),
+        `# ${heading}\n\nThe body.\n`,
+        "utf8",
+      );
+    }
+    const request = createWebRequestHandler({
+      configPath: workspace.configPath,
+    });
+    const page = async (file: string): Promise<string> =>
+      (
+        await request(
+          new Request(
+            `http://127.0.0.1/area/product/resources/resources/${encodeURIComponent(file)}`,
+          ),
+        )
+      ).text();
+
+    // Counted inside the rendered body, where a kept heading would appear.
+    const bodyHeadings = (html: string): string[] => {
+      const start = html.indexOf('<div class="prose');
+      const body = html.slice(start, html.indexOf("</div>", start));
+      return [...body.matchAll(/<h1[^>]*>([^<]*)/g)].map(
+        (match) => match[1] ?? "",
+      );
+    };
+
+    const differs = await page("Platform overview.md");
+    expect(differs).toContain(">Platform overview</h1>");
+    expect(bodyHeadings(differs)).toEqual(["How we run the platform"]);
+
+    const repeats = await page("Runbook.md");
+    expect(repeats).toContain(">Runbook</h1>");
+    expect(bodyHeadings(repeats)).toEqual([]);
+  });
+
   test("refuses a script URL", async () => {
     const html = await render();
 
