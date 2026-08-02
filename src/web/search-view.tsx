@@ -1,3 +1,4 @@
+import { documentBody } from "../core/markdown";
 import { documentStateLabel } from "../core/state-model";
 import type {
   WebSearchDashboardData,
@@ -7,7 +8,7 @@ import type {
 import { FilterMenu } from "./filters";
 import { previewBlocks, splitSnippet } from "./format";
 import { SearchIcon } from "./icons";
-import { documentLabel, KIND_LABELS, readerBody } from "./kinds";
+import { documentLabel, KIND_LABELS } from "./kinds";
 import { routes } from "./routes";
 import { cx, FILTER, SHELL } from "./ui";
 import { resourcesUrl, searchUrl } from "./urls";
@@ -68,7 +69,7 @@ function SearchPreview({ data }: SearchViewProps) {
   }
 
   const { document, hit } = preview;
-  const blocks = previewBlocks(readerBody(document), data.query);
+  const blocks = previewBlocks(documentBody(document.content), data.query);
   const previewLabel = [
     document.kind === "resource" ? "" : KIND_LABELS[document.kind],
     document.state === "active" ? "" : documentStateLabel(document.state),

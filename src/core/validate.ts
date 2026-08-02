@@ -13,7 +13,7 @@ import {
   shortestLinkForm,
 } from "./links";
 import { loadProjects, loadTasks } from "./manifests";
-import { frontmatterField, headingTitle } from "./markdown";
+import { frontmatterField, headingTitle, plainText } from "./markdown";
 import {
   hasReferencePrefix,
   isRelativeTarget,
@@ -268,6 +268,21 @@ export async function validateArea(
     ) {
       warnings.push(
         `${resource.path} declares unknown Resource state '${state}'; Dokito reads it as active.`,
+      );
+    }
+    /*
+     * The reader shows the filename as the heading, so a leading H1 saying
+     * anything else appears nowhere. Reporting it keeps the sentence from
+     * going missing without a word.
+     */
+    const heading = headingTitle(content);
+    if (
+      heading !== undefined &&
+      plainText(heading).toLocaleLowerCase() !==
+        path.basename(resource.path, ".md").toLocaleLowerCase()
+    ) {
+      warnings.push(
+        `${resource.path} has an H1 its filename does not say; the reader shows the filename, so that heading is not displayed.`,
       );
     }
     resourceDocuments.push({

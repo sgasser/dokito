@@ -3,6 +3,7 @@ import {
   type DocumentLookup,
   resolveLink,
 } from "../core/links";
+import { documentBody } from "../core/markdown";
 import { documentStateLabel } from "../core/state-model";
 import type {
   WebDocument,
@@ -20,7 +21,6 @@ import {
   KIND_DOTS,
   KIND_LABELS,
   type ResourceExplorerNode,
-  readerBody,
   resourceExplorerTree,
 } from "./kinds";
 import { MarkdownContent, markdownImageHref } from "./markdown";
@@ -510,7 +510,7 @@ function DocumentReader({ data }: ResourcesViewProps) {
               </div>
             ) : (
               <MarkdownContent
-                content={readerBody(document)}
+                content={documentBody(document.content)}
                 resolveDocumentHref={(target) => {
                   const linked = findLinkedDocument(
                     data,

@@ -1,4 +1,3 @@
-import { documentBody, headingTitle, stripFrontmatter } from "../core/markdown";
 import type { DocumentState } from "../core/state-model";
 import type { WebDocumentKind } from "./data";
 
@@ -106,24 +105,6 @@ export function documentLabel(document: {
   return document.kind === "resource"
     ? resourceExplorerLabel(document.relativePath)
     : document.title;
-}
-
-/**
- * What the reader renders under the heading. A leading H1 is dropped only where
- * it repeats the name the page already shows; anything else it says is content
- * and stays, because no other screen would show it.
- */
-export function readerBody(document: {
-  kind: WebDocumentKind;
-  relativePath: string;
-  title: string;
-  content: string;
-}): string {
-  const heading = headingTitle(stripFrontmatter(document.content));
-  return heading !== undefined &&
-    heading.toLocaleLowerCase() !== documentLabel(document).toLocaleLowerCase()
-    ? stripFrontmatter(document.content).trim()
-    : documentBody(document.content);
 }
 
 /**

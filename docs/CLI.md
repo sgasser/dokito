@@ -296,7 +296,8 @@ non-zero exit code and stable domain error. Every other command skips such a
 document and keeps reading; `validate` is the command that rejects it, and it
 reports every unreadable document it found in `details.problems`.
 
-Unknown Area or Resource states, missing H1 headings in free-form documents,
+Unknown Area or Resource states, a missing H1 in `context.md`, a Resource
+whose H1 says something its filename does not,
 and unresolved, ambiguous or relative links are successful warnings. An
 ambiguous link names the documents that share the filename, and a relative link
 names the form to write instead.

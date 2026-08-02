@@ -77,7 +77,9 @@ would say it aloud: it is what links resolve and what every screen shows,
 heading included. Folders organize Resources but do not distinguish them: a
 link written from a Task or a Project cannot see the folder, so
 `Platform overview.md` works where a second `platform/overview.md` does not.
-An H1 is optional and no longer shown, so nothing has to be kept in step.
+An H1 is optional and is not shown, because the heading is the filename. One
+that says something else is reported by `dokito validate`, so put that wording
+in the filename or the body instead.
 
 ```markdown
 Reference material, in whatever shape suits it.

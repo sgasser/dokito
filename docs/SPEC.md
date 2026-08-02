@@ -429,7 +429,8 @@ work is real. Its warning states that the reference is unresolved rather than
 that the Task was skipped.
 
 Free-form conventions do not make an Area invalid. An unknown Area or Resource
-state, a missing H1 in `context.md` or a Resource, and an unresolved, ambiguous
+state, a missing H1 in `context.md`, a Resource whose H1 says something its
+filename does not, and an unresolved, ambiguous
 or relative link produce warnings while the command succeeds. Structured output
 returns the Area, context state and byte count, collection paths and counts,
 and warnings.
