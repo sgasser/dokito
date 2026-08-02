@@ -211,16 +211,6 @@ it, and Dokito resolves the same Area from any connected checkout. On macOS
 with [Conductor](https://www.conductor.build/) installed, the Web view can also
 start a Task there when a local checkout is available.
 
-## Upgrading to 0.3
-
-Links resolve by filename now, and two older forms stop resolving: a document's
-heading, and a `../` path. An Area written before 0.3 keeps working, but those
-links go quiet, so run `dokito validate` once — it names every link that no
-longer resolves and, for a `../` path, the filename to write instead.
-
-A Resource is also named by its file in the Web view, heading included, so an
-H1 that says something the filename does not is reported rather than shown.
-
 ## Current limits
 
 - Dokito is early-stage: commands and Markdown file formats may change between

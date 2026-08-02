@@ -265,6 +265,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
+          # Generated notes list the pull requests that landed. A release that
+          # removes or changes behaviour has to say so in its own words, so it
+          # may carry a file that is placed above them.
+          notes=(--generate-notes)
+          note_file=".github/release-notes/$GITHUB_REF_NAME.md"
+          if [ -f "$note_file" ]; then
+            notes=(--notes-file "$note_file" "${notes[@]}")
+          fi
+
           gh release create "$GITHUB_REF_NAME" \
             dist/release/*.tar.gz \
             dist/release/*.zip \
@@ -273,4 +284,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "Dokito $GITHUB_REF_NAME" \
-            --generate-notes
+            "${notes[@]}"
