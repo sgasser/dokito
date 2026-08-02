@@ -62,9 +62,19 @@ describe("A named configuration file", () => {
   });
 
   // The path resolver reads an empty value as unset, so the guard must too.
+  // `DOKITO_CONFIG_PATH` is the other way to name one, and a machine that has
+  // it set would otherwise fail this.
   test("counts as unnamed when the value is empty", () => {
-    expect(parseCli(["--config", "", "areas"]).configNamed).toBe(false);
-    expect(parseCli(["--config", "/x.yaml", "areas"]).configNamed).toBe(true);
+    const named = process.env.DOKITO_CONFIG_PATH;
+    delete process.env.DOKITO_CONFIG_PATH;
+    try {
+      expect(parseCli(["--config", "", "areas"]).configNamed).toBe(false);
+      expect(parseCli(["--config", "/x.yaml", "areas"]).configNamed).toBe(true);
+    } finally {
+      if (named !== undefined) {
+        process.env.DOKITO_CONFIG_PATH = named;
+      }
+    }
   });
 
   test("is checked after the arguments the command needs", async () => {
