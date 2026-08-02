@@ -477,7 +477,7 @@ function DocumentReader({ data }: ResourcesViewProps) {
             data-document-title=""
             tabIndex={-1}
           >
-            {document.title}
+            {documentLabel(document)}
           </h1>
           <p className="mt-[9px] flex flex-wrap items-center gap-2 text-ui-sm text-muted">
             {/* The kind is named only where it distinguishes: on the Area file

@@ -233,7 +233,7 @@ export function selectFocus(
 ): FocusSelection {
   const open = areas.flatMap((area) => {
     const projectTitles = new Map(
-      area.projects.map((project) => [project.id, project.id]),
+      area.projects.map((project) => [project.id, project.title]),
     );
     return area.tasks
       .filter((task) => taskStatusMatches(task.status, "open"))

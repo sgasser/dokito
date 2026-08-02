@@ -47,7 +47,7 @@ export async function paletteIndex(
   for (const { areaId, projects, tasks, documents } of loaded) {
     for (const project of projects) {
       entries.push({
-        title: project.id,
+        title: project.title,
         meta: projectStatusLabel(project.status),
         kind: "Project",
         ...(project.status === "active" ? { live: true as const } : {}),

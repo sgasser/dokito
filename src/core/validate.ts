@@ -271,11 +271,6 @@ export async function validateArea(
         `${resource.path} declares unknown Resource state '${state}'; Dokito reads it as active.`,
       );
     }
-    if (!headingTitle(content)) {
-      warnings.push(
-        `${resource.path} has no H1 heading; the Web view falls back to its filename.`,
-      );
-    }
     resourceDocuments.push({
       relativePath: resource.path,
       title: headingTitle(content) ?? path.basename(resource.path, ".md"),

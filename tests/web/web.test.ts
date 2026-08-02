@@ -373,7 +373,7 @@ describe("Web", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain("Dokito — Resources");
-    expect(html).toContain(">Reader test</h1>");
+    expect(html).toContain(">reader-test</h1>");
     expect(html).toContain("<strong>important</strong>");
     expect(html).toContain("<code>code</code>");
     expect(html).toContain('class="contains-task-list"');
@@ -439,7 +439,7 @@ describe("Web", () => {
       )
     ).text();
     expect(taskPage).toContain(
-      'href="/area/product/projects/launch">launch</a>',
+      'href="/area/product/projects/launch">Launch the product</a>',
     );
     expect(taskPage).toContain(">Resources</p>");
     expect(taskPage).toContain(">architecture</span>");
@@ -452,9 +452,9 @@ describe("Web", () => {
         ),
       )
     ).text();
-    // The heading keeps the document's own title; the list beside it names
-    // the file, which is what a link resolves.
-    expect(resourcePage).toContain(">Markdown torture</h1>");
+    // A Resource is named by its file, heading included, so no second name
+    // has to be kept in step with it.
+    expect(resourcePage).toContain(">markdown</h1>");
     expect(resourcePage).toContain(">my notes</span>");
     const notePath = path.join(workspace.areaRoot, "resources", "my notes.md");
     await writeFile(
@@ -783,7 +783,7 @@ describe("Web", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain('data-search-preview=""');
-    expect(html).toContain(">Product</h2>");
+    expect(html).toContain(">product</h2>");
     expect(html).toContain("helps small teams");
     expect(html).toContain("data-search-hits");
     expect(html).toContain("<!doctype html>");

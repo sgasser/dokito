@@ -24,7 +24,7 @@ test("resource navigation preserves the shell, explorer, and browser history", a
     /\/area\/product\/resources\/resources\/architecture\.md$/,
   );
   const title = page.locator("[data-document-title]");
-  await expect(title).toHaveText("Architecture");
+  await expect(title).toHaveText("architecture");
   await expect(rail).toHaveAttribute("data-runtime-state", "preserved");
   expect(
     await explorer.evaluate((node) => Reflect.get(node, "dokitoPersistent")),
@@ -80,7 +80,7 @@ test("resource navigation still works without client-side JavaScript", async ({
     /\/area\/product\/resources\/resources\/architecture\.md$/,
   );
   await expect(page.locator("[data-document-title]")).toHaveText(
-    "Architecture",
+    "architecture",
   );
   await context.close();
 });
@@ -247,7 +247,7 @@ test("resource navigation reveals the current document in a collapsed folder", a
   await expect(page).toHaveURL(
     /\/area\/product\/resources\/resources\/guides\/setup\.md$/,
   );
-  await expect(page.locator("[data-document-title]")).toHaveText("Setup");
+  await expect(page.locator("[data-document-title]")).toHaveText("setup");
   await expect(directory).toHaveAttribute("open", "");
   await expect(
     directory.locator(
@@ -258,9 +258,7 @@ test("resource navigation reveals the current document in a collapsed folder", a
 
 test("related reader data is part of each complete page", async ({ page }) => {
   await page.goto("/area/product/resources/resources/markdown.md");
-  await expect(page.locator("[data-document-title]")).toHaveText(
-    "Markdown torture",
-  );
+  await expect(page.locator("[data-document-title]")).toHaveText("markdown");
   const related = page.locator("[data-related-rows]");
   await expect(related.getByText("my notes", { exact: true })).toBeVisible();
   await expect(page.locator("[data-derived-skeleton]")).toHaveCount(0);
@@ -268,7 +266,7 @@ test("related reader data is part of each complete page", async ({ page }) => {
   await page
     .locator('article a[data-document-link][href$="/resources/security.md"]')
     .click();
-  await expect(page.locator("[data-document-title]")).toHaveText("Security");
+  await expect(page.locator("[data-document-title]")).toHaveText("security");
   await expect(
     page.locator("[data-related-rows]").getByText("markdown", { exact: true }),
   ).toBeVisible();
@@ -277,9 +275,7 @@ test("related reader data is part of each complete page", async ({ page }) => {
     .locator('a[data-document-link][href$="/resources/markdown.md"]')
     .first()
     .click();
-  await expect(page.locator("[data-document-title]")).toHaveText(
-    "Markdown torture",
-  );
+  await expect(page.locator("[data-document-title]")).toHaveText("markdown");
   await expect(
     page.locator("[data-related-rows]").getByText("my notes", { exact: true }),
   ).toBeVisible();
@@ -305,7 +301,7 @@ test("Related handles Unicode paths and preserves the archived filter", async ({
   await expect(page).toHaveURL(
     /\/area\/product\/resources\/resources\/security\.md\?archived=1$/,
   );
-  await expect(page.locator("[data-document-title]")).toHaveText("Security");
+  await expect(page.locator("[data-document-title]")).toHaveText("security");
 });
 
 test("project details render with the complete page", async ({ page }) => {
@@ -519,7 +515,7 @@ test("Search opens a preview while preserving the result list", async ({
   );
   await expect(
     page.locator("[data-search-preview]").getByRole("heading", {
-      name: "Architecture",
+      name: "architecture",
     }),
   ).toBeVisible();
   await expect(page.locator("[data-navigation-focus]")).toBeFocused();
@@ -533,7 +529,7 @@ test("Search opens a preview while preserving the result list", async ({
 
   await expect(page).toHaveURL(/\/area\/product\/search\?q=architecture$/);
   await expect(page.locator("[data-search-preview]")).toContainText(
-    "Architecture",
+    "architecture",
   );
   expect(
     await hits.evaluate((node) => Reflect.get(node, "dokitoPersistent")),

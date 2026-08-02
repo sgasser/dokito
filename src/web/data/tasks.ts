@@ -107,7 +107,7 @@ export async function loadTasksView(
       .flatMap((area) => area.projects)
       .map((project) => ({
         id: project.id,
-        title: project.id,
+        title: project.title,
         count: inLifecycle.filter((item) => item.task.project === project.id)
           .length,
       })),

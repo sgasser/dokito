@@ -8,7 +8,7 @@ import type {
 import { FilterMenu } from "./filters";
 import { previewBlocks, splitSnippet } from "./format";
 import { SearchIcon } from "./icons";
-import { KIND_LABELS } from "./kinds";
+import { documentLabel, KIND_LABELS } from "./kinds";
 import { routes } from "./routes";
 import { cx, FILTER, SHELL } from "./ui";
 import { resourcesUrl, searchUrl } from "./urls";
@@ -107,7 +107,7 @@ function SearchPreview({ data }: SearchViewProps) {
           data-navigation-focus=""
           tabIndex={-1}
         >
-          {document.title}
+          {documentLabel(document)}
         </h2>
         <p className="mt-2 font-mono text-ui-xs text-muted">
           {document.areaName} · {document.relativePath}

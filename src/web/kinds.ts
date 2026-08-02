@@ -91,19 +91,20 @@ export function resourceExplorerLabel(relativePath: string): string {
 }
 
 /**
- * How a document is named wherever it is listed or linked. A filename is what
- * a link resolves, so showing it is what makes a list and a link agree. Two
- * kinds keep their heading instead: a Task is filed under a ULID, and the Area
- * file is called `context`, so neither filename names anything to a reader.
+ * How a document is named wherever it is listed or linked: by the name a reader
+ * would say. For a Resource that is its filename, which is also what a link
+ * resolves, so list and link agree. A Project is filed under a slug, a Task
+ * under a ULID and the Area file is called `context`; none of those names the
+ * thing, so those keep their heading.
  */
 export function documentLabel(document: {
   kind: WebDocumentKind;
   relativePath: string;
   title: string;
 }): string {
-  return document.kind === "task" || document.kind === "area"
-    ? document.title
-    : resourceExplorerLabel(document.relativePath);
+  return document.kind === "resource"
+    ? resourceExplorerLabel(document.relativePath)
+    : document.title;
 }
 
 /**

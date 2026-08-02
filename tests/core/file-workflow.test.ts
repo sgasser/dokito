@@ -215,7 +215,6 @@ describe("File-first model workflow", () => {
     expect(result.json.data?.warnings).toEqual(
       expect.arrayContaining([
         expect.stringContaining("unknown Resource state 'dormant'"),
-        expect.stringContaining("warning.md has no H1 heading"),
         expect.stringContaining("unresolved document link 'missing.md'"),
       ]),
     );

@@ -256,12 +256,13 @@ state: archived
 |---|---|---|
 | identity | yes | normalized Area-relative `.md` path below `resources/` |
 | `state` | no | `active` or `archived`; omission means active |
-| title | no | first H1, otherwise derived from the filename |
+| name | yes | the filename, shown as the heading and in every list |
 | content | no | free-form Markdown |
 
-Frontmatter and an H1 are optional. Unknown states are read as active, and a
-missing title is derived from the filename; both produce validation warnings.
-Resources use Markdown links rather than typed relation frontmatter.
+Frontmatter and an H1 are optional. A Resource is named by its file, in every
+list and as its heading, so nothing has to be kept in step with the filename.
+An unknown state is read as active and reported as a warning. Resources use
+Markdown links rather than typed relation frontmatter.
 
 ## Task model
 
