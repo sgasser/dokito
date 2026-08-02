@@ -183,7 +183,21 @@ export async function resolveScope(input: ScopeInput): Promise<AreaScope> {
     };
   }
 
-  const codeRoot = await gitWorktreeRoot(cwd);
+  // Git is the second of two ways in, so its own failure names a mechanism
+  // rather than the subject: whether any Area covers this directory.
+  const codeRoot = await gitWorktreeRoot(cwd).catch((error) => {
+    if (
+      error instanceof DokitoError &&
+      error.code === "git_worktree_not_found"
+    ) {
+      throw new DokitoError(
+        "area_not_resolved",
+        `No Area here: '${cwd}' holds no dokito.yaml above it and is not a Git checkout of a registered Repository. Run 'dokito areas' to list the registered Areas.`,
+        { cwd },
+      );
+    }
+    throw error;
+  });
   const config = await loadConfig(input.configPath);
   const registered = await loadRegisteredAreas(config);
   const remoteIdentities = new Set(

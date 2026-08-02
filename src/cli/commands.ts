@@ -2,6 +2,7 @@ import packageJson from "../../package.json";
 import { listAreas, registerExistingArea } from "../core/areas";
 import { context } from "../core/context";
 import { DokitoError } from "../core/error";
+import { pathExists } from "../core/files";
 import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
 import { resolveReference } from "../core/resolve";
 import { createUlid } from "../core/ulid";
@@ -80,11 +81,30 @@ function areasHuman(result: Awaited<ReturnType<typeof listAreas>>): string {
           `Registered Areas: ${result.areas.length}`,
           ...result.areas.map((area) =>
             area.available
-              ? `- ${area.id}: ${area.name}  ${area.path}  (${area.repositoryCount} Repositories)`
+              ? `- ${area.id}: ${area.name}  ${area.path}  (${counted(area.repositoryCount, "Repository", "Repositories")})`
               : `- ${area.id}: unavailable  ${area.path}  [${area.error.code}] ${area.error.message}`,
           ),
         ];
   return [...areas, `Config: ${result.configPath}`].join("\n");
+}
+
+/**
+ * A named file that is missing is a typed path, not an empty registry. Called
+ * per command after its own options, so a usage error still comes first.
+ */
+async function requireNamedConfig(global: GlobalOptions): Promise<void> {
+  if (global.configNamed && !(await pathExists(global.configPath))) {
+    throw new DokitoError(
+      "config_not_found",
+      `Configuration file not found: ${global.configPath}`,
+      { path: global.configPath },
+    );
+  }
+}
+
+/** `1 Repositories` reads as a bug in the data rather than in the sentence. */
+function counted(value: number, singular: string, plural: string): string {
+  return `${value} ${value === 1 ? singular : plural}`;
 }
 
 function details(values: Array<string | undefined>): string {
@@ -99,9 +119,7 @@ function inventoryHeader(
   count: number,
   areaCount: number,
 ): string {
-  return `${collection}: ${count} across ${areaCount} ${
-    areaCount === 1 ? "Area" : "Areas"
-  }`;
+  return `${collection}: ${count} across ${counted(areaCount, "Area", "Areas")}`;
 }
 
 function projectsHuman(
@@ -217,6 +235,7 @@ export async function runCli(global: GlobalOptions): Promise<void> {
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "areas accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listAreas({ configPath: global.configPath });
     success(global.json, result, areasHuman(result));
     writeWarnings(global.json, result.warnings);
@@ -228,6 +247,7 @@ export async function runCli(global: GlobalOptions): Promise<void> {
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "projects accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listRegisteredProjects({
       configPath: global.configPath,
     });
@@ -241,6 +261,7 @@ export async function runCli(global: GlobalOptions): Promise<void> {
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
     }
+    await requireNamedConfig(global);
     const result = await listRegisteredTasks({
       configPath: global.configPath,
     });
@@ -277,6 +298,7 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   if (command === "resolve") {
     assertOptions(global, ["cwd"]);
     const reference = onePositional(args, "reference");
+    await requireNamedConfig(global);
     const result = await resolveReference({
       cwd: global.cwd,
       configPath: global.configPath,

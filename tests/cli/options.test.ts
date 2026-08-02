@@ -27,11 +27,64 @@ describe("The --cwd option", () => {
   test.each(["context", "validate"])(
     "still moves %s to the named directory",
     async (command) => {
-      await expect(run(command)).rejects.toThrow(
-        "The current directory is not inside a Git worktree.",
-      );
+      await expect(run(command)).rejects.toThrow("No Area here: '/'");
     },
   );
+});
+
+/** Git is the second of two ways in, so its failure named the wrong subject. */
+describe("Resolving no Area", () => {
+  test("names Areas rather than Git, and where to look", async () => {
+    await expect(
+      runCli(
+        parseCli(["--config", "/nonexistent.yaml", "--cwd", "/", "context"]),
+      ),
+    ).rejects.toMatchObject({ code: "area_not_resolved" });
+  });
+});
+
+/** A missing named file used to answer with a plausible "no Areas registered". */
+describe("A named configuration file", () => {
+  test.each(["areas", "projects", "tasks"])(
+    "must exist before %s reports an empty registry",
+    async (command) => {
+      await expect(
+        runCli(parseCli(["--config", "/nonexistent.yaml", command])),
+      ).rejects.toMatchObject({ code: "config_not_found" });
+    },
+  );
+
+  test("is still created by register", async () => {
+    // register writes the file, so a missing one is the normal first run.
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "register", "/tmp"])),
+    ).rejects.toMatchObject({ code: "area_manifest_not_found" });
+  });
+
+  // The path resolver reads an empty value as unset, so the guard must too.
+  // `DOKITO_CONFIG_PATH` is the other way to name one, and a machine that has
+  // it set would otherwise fail this.
+  test("counts as unnamed when the value is empty", () => {
+    const named = process.env.DOKITO_CONFIG_PATH;
+    delete process.env.DOKITO_CONFIG_PATH;
+    try {
+      expect(parseCli(["--config", "", "areas"]).configNamed).toBe(false);
+      expect(parseCli(["--config", "/x.yaml", "areas"]).configNamed).toBe(true);
+    } finally {
+      if (named !== undefined) {
+        process.env.DOKITO_CONFIG_PATH = named;
+      }
+    }
+  });
+
+  test("is checked after the arguments the command needs", async () => {
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "resolve"])),
+    ).rejects.toThrow("Expected one reference.");
+    await expect(
+      runCli(parseCli(["--config", "/nonexistent.yaml", "areas", "extra"])),
+    ).rejects.toThrow("areas accepts no arguments.");
+  });
 });
 
 describe("Dokito Web subcommands", () => {
