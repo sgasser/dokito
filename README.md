@@ -142,6 +142,15 @@ rename. Project and Task frontmatter is strict — unknown fields and invalid
 values fail `dokito validate` — so an agent cannot quietly invent a shape of
 its own. Resources stay free-form Markdown.
 
+Documents link to each other by filename. `[[architecture]]` reaches
+`resources/architecture.md` from anywhere in the Area, and as much of the path
+as it takes settles a repeated name. A Project is `[[project:launch]]`, a Task
+`[[task:01K1ABCXYZ0000000000000000|Draft the launch post]]`, and a file in a
+connected Repository `[[repo:web-app/README.md]]`. Headings are display text,
+and a link never carries a `../` path or a path from your machine — which is
+what lets you hand the directory to someone who keeps it elsewhere. When one
+filename is used twice, `dokito validate` names both instead of picking one.
+
 Read them in any editor, grep them, review them in a pull request. These files
 are the state. For manual setup and every supported file shape, see the
 [specification](docs/SPEC.md).
@@ -166,9 +175,11 @@ Projects: 2 across 3 Areas
 - [active] northwind/onboarding: Onboard Northwind
 ```
 
-`dokito tasks` does the same for Tasks, and the Web view switches between
-Areas. However many Areas you keep, the overview stays one command away — and
-an agent gets the same view from any directory on the machine.
+`dokito tasks` does the same for Tasks, and `dokito resolve <name>` says where
+a name lives, listing every Area that holds it and every match inside them. The
+Web view switches between Areas. However many Areas you keep, the overview
+stays one command away — and an agent gets the same view from any directory on
+the machine.
 
 ## Browse your work
 
