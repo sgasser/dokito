@@ -3,6 +3,7 @@ import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
 import { searchDocumentContent } from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
+import { documentLabel } from "../kinds";
 import { loadEachArea } from "./areas";
 import { WorkspaceSnapshot, type WorkspaceSnapshotInput } from "./snapshot";
 import type {
@@ -138,7 +139,7 @@ export async function loadSearchView(
                   areaId: document.areaId,
                   areaName: document.areaName,
                   path: document.relativePath,
-                  title: document.title,
+                  title: documentLabel(document),
                   kind: document.kind,
                   type: searchType(document),
                   meta: hitMeta(document),

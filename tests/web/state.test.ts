@@ -272,7 +272,7 @@ describe("Search across Areas", () => {
       )
     ).text();
 
-    expect(html).toMatch(/Archived pricing[\s\S]*>Archived<\/span>/);
+    expect(html).toMatch(/pricing[\s\S]*>Archived<\/span>/);
     expect(html).toContain(
       'href="/area/product/resources/resources/pricing.md?archived=1"',
     );
