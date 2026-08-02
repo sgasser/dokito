@@ -35,7 +35,6 @@ interface ValidationCollection {
 
 interface ValidationDocument {
   relativePath: string;
-  title: string;
   content: string;
 }
 
@@ -273,7 +272,6 @@ export async function validateArea(
     }
     resourceDocuments.push({
       relativePath: resource.path,
-      title: headingTitle(content) ?? path.basename(resource.path, ".md"),
       content,
     });
   }
@@ -281,17 +279,14 @@ export async function validateArea(
   const documents: ValidationDocument[] = [
     {
       relativePath: "context.md",
-      title: headingTitle(context) ?? "context",
       content: context,
     },
     ...projects.map((project) => ({
       relativePath: project.relativePath,
-      title: project.title,
       content: project.content,
     })),
     ...tasks.map((task) => ({
       relativePath: task.relativePath,
-      title: task.title,
       content: task.content,
     })),
     ...resourceDocuments,
