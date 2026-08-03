@@ -80,6 +80,7 @@ function toLocalTask(task: TaskDocument): LocalTask {
   return {
     id: task.id,
     status: task.status,
+    ...(task.assignee ? { assignee: task.assignee } : {}),
     ...(task.project ? { project: task.project } : {}),
     ...(task.repository ? { repository: task.repository } : {}),
     ...(task.priority ? { priority: task.priority } : {}),

@@ -50,6 +50,7 @@ describe("Tasks", () => {
       "Coordinate the product launch",
       "Revise the privacy notice",
     ]);
+    expect(result.localTasks[0]?.assignee).toBe("Launch Agent");
     expect(result.warnings).toEqual([]);
   });
 

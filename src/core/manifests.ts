@@ -434,7 +434,7 @@ export async function loadTasks(
         const { metadata, body } = parseFrontmatter(content, relativePath);
         assertKeys(
           metadata,
-          ["status", "project", "repository", "priority", "due"],
+          ["status", "assignee", "project", "repository", "priority", "due"],
           "task_invalid",
           relativePath,
         );
@@ -454,6 +454,20 @@ export async function loadTasks(
             allowed: TASK_STATUS_VALUES,
           },
         );
+
+        const assignee = optionalString(
+          metadata,
+          "assignee",
+          "task_invalid",
+          relativePath,
+        );
+        if (assignee !== undefined) {
+          fail(
+            !/[\r\n]/.test(assignee),
+            "task_invalid",
+            `${relativePath}.assignee must be a single-line string.`,
+          );
+        }
 
         const projectValue = optionalString(
           metadata,
@@ -519,6 +533,7 @@ export async function loadTasks(
         const document = {
           id,
           status: statusValue,
+          ...(assignee ? { assignee } : {}),
           ...(project ? { project } : {}),
           ...(repository ? { repository } : {}),
           ...(priorityValue ? { priority: priorityValue } : {}),

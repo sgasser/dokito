@@ -174,6 +174,39 @@ describe("Document metadata", () => {
     expect(task?.description).toBe(
       "Verify the release across the Web app, API, and website.",
     );
+    expect(task?.assignee).toBe("Launch Agent");
+  });
+
+  test("rejects an empty or multiline Task assignee", async () => {
+    const fixture = await setup();
+    const taskPath = path.join(
+      fixture.areaRoot,
+      "tasks",
+      "01K1ABCXYZ0000000000000000-coordinate-launch.md",
+    );
+    const content = await readFile(taskPath, "utf8");
+    for (const invalid of ['""', "|-\n  Launch\n  Agent"]) {
+      await writeFile(
+        taskPath,
+        content.replace('assignee: "Launch Agent"', `assignee: ${invalid}`),
+        "utf8",
+      );
+
+      const { tasks, problems } = await loadTasks(
+        fixture.areaRoot,
+        await repositories(fixture),
+      );
+
+      expect(tasks.map((task) => task.relativePath)).not.toContain(
+        "tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+      );
+      expect(problems).toMatchObject([
+        {
+          path: "tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+          error: { code: "task_invalid" },
+        },
+      ]);
+    }
   });
 
   test("rejects duplicate Task IDs", async () => {

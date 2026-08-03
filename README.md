@@ -128,6 +128,7 @@ belong to the same product.
 ```markdown
 ---
 status: in_progress
+assignee: "Launch Agent"
 project: launch
 priority: normal
 ---
@@ -194,7 +195,9 @@ See each outcome together with its open work and connected Repositories.
 
 ### Tasks
 
-Track concrete work by status, priority, due date, Project, or Repository.
+Track concrete work by status, assignee, priority, due date, Project, or
+Repository. An assignee is a free-form person or agent name; assigning a Task
+does not start an agent automatically.
 
 ![Dokito showing Tasks grouped by status alongside the selected Task details](docs/assets/dokito-tasks-view.png)
 
