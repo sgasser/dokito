@@ -121,6 +121,7 @@ spaces, or underscores, fails validation for the whole Area.
 ```markdown
 ---
 status: todo
+assignee: "Privacy Agent"
 project: launch
 repository: web-app
 priority: high
@@ -134,4 +135,6 @@ Explain the required change.
 
 Task frontmatter is strict. Allowed statuses are `todo`, `in_progress`,
 `waiting`, `someday`, `done`, and `cancelled`. Allowed priorities are `low`,
-`normal`, `high`, and `urgent`. Omit absent optional fields.
+`normal`, `high`, and `urgent`. `assignee` is an optional, non-empty free-form
+person or agent name. It records responsibility and does not start an agent.
+Omit absent optional fields.

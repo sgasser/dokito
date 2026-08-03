@@ -83,6 +83,9 @@ describe("Global work inventory", () => {
       "product:todo",
       "personal:done",
     ]);
+    expect(tasks.tasks.find((task) => task.area === "product")?.assignee).toBe(
+      "Launch Agent",
+    );
     expect(tasks.tasks[0]).not.toHaveProperty("content");
   });
 
@@ -168,6 +171,7 @@ describe("Global work inventory", () => {
     expect(humanExit).toBe(0);
     expect(humanError).toBe("");
     expect(humanOutput).toContain("Tasks: 4 across 2 Areas");
+    expect(humanOutput).toContain("assignee Launch Agent");
 
     const configPath = path.join(fixture.root, "empty", "config.yaml");
     await expect(listRegisteredProjects({ configPath })).resolves.toEqual({

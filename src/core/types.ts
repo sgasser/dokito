@@ -48,6 +48,7 @@ export interface ProjectDocument {
 export interface TaskDocument {
   id: string;
   status: TaskStatus;
+  assignee?: string;
   project?: string;
   repository?: string;
   priority?: TaskPriority;
@@ -62,6 +63,7 @@ export interface TaskDocument {
 export interface LocalTask {
   id: string;
   status: TaskStatus;
+  assignee?: string;
   project?: string;
   repository?: string;
   priority?: TaskPriority;

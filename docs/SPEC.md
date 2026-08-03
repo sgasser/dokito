@@ -280,6 +280,7 @@ Task IDs must be unique within an Area.
 ```markdown
 ---
 status: todo
+assignee: "Privacy Agent"
 project: launch
 repository: web-app
 priority: high
@@ -295,6 +296,7 @@ Explain which customer data the Web app sends to the API.
 |---|---|---|
 | `id` | yes | immutable uppercase 26-character ULID at the start of the filename |
 | `status` | yes | `todo`, `in_progress`, `waiting`, `someday`, `done`, or `cancelled` in frontmatter |
+| `assignee` | no | non-empty free-form person or agent name in frontmatter |
 | `project` | no | lowercase ID of an existing Project in frontmatter |
 | `repository` | no | Repository ID registered by the Area in frontmatter |
 | `priority` | no | `low`, `normal`, `high`, or `urgent` in frontmatter |

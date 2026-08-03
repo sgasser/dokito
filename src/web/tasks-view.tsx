@@ -230,6 +230,11 @@ function Row({
             {item.areaName}
           </span>
         )}
+        {item.task.assignee ? (
+          <span className="max-w-[180px] flex-none truncate text-ui-sm text-ink-soft">
+            Assigned to {item.task.assignee}
+          </span>
+        ) : null}
         {repository ? (
           <span className="max-w-[180px] flex-none truncate rounded-[4px] bg-sidebar px-1.5 py-0.5 font-mono text-ui-xs text-ink-soft">
             {repository}
@@ -270,6 +275,15 @@ function Detail({ data }: TasksViewProps) {
             label: "Priority",
             value: taskPriorityLabel(item.task.priority),
             peek: false,
+          },
+        ]
+      : []),
+    ...(item.task.assignee
+      ? [
+          {
+            label: "Assignee",
+            value: item.task.assignee,
+            peek: true,
           },
         ]
       : []),

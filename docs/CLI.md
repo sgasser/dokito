@@ -143,7 +143,7 @@ dokito tasks
 These commands list every Project or local Markdown Task from every readable
 registered Area without resolving the current directory. Human output prefixes
 each item with its Area and ID, then shows its status, title, and useful typed
-metadata.
+metadata, including a Task's optional assignee.
 
 With `--json`, `data` contains the configuration path, readable Area count,
 `projects` or `tasks`, and warnings. Every item includes `area`, `areaName`,

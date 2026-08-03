@@ -149,6 +149,7 @@ function tasksHuman(
     ...result.tasks.map(
       (task) =>
         `- [${task.status}] ${task.area}/${task.id}: ${task.title}${details([
+          task.assignee ? `assignee ${task.assignee}` : undefined,
           task.priority ? `priority ${task.priority}` : undefined,
           task.due ? `due ${task.due}` : undefined,
           task.project ? `project ${task.project}` : undefined,

@@ -124,6 +124,9 @@ describe("Web", () => {
     expect(detailHtml).toContain("01K1ABCXYZ0000000000000000");
     expect(detailHtml).toContain("Verify the release across the Web app");
     expect(detailHtml).toContain("In progress");
+    expect(detailHtml).toContain("Assigned to Launch Agent");
+    expect(detailHtml).toContain("Assignee");
+    expect(detailHtml).toContain("Launch Agent");
     expect(detailHtml).toMatch(
       /href="\/area\/product\/tasks"[^>]*aria-current="page"[^>]*data-nav-link=""/,
     );
