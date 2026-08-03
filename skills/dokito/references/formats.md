@@ -78,7 +78,8 @@ heading included. Folders organize Resources but do not distinguish them: a
 link written from a Task or a Project cannot see the folder, so
 `Platform overview.md` works where a second `platform/overview.md` does not.
 `dokito validate` reports an H1 that says something the filename does not, so
-put that wording in the filename or the body.
+put that wording in the filename or the body. A new Resource either has no H1
+or repeats the filename stem exactly.
 
 ```markdown
 Reference material, in whatever shape suits it.

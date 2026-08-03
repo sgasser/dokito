@@ -236,6 +236,9 @@ Area rather than only the current one and returns every match, because a
 person or an agent asking where a name lives is the one who knows which match
 they meant. Matches in the Area of the working directory come first.
 
+The reference is the target inside the Wikilink, without `[[...]]` and without
+`|display text`.
+
 ```bash
 dokito resolve "Data retention"
 dokito resolve project:launch
@@ -270,10 +273,11 @@ A document match carries `relativePath` instead of `repository`. A configured
 checkout that is currently absent is still a match, with `exists: false`, so
 the intended location stays visible.
 
-Three cases fail with a non-zero exit code: `reference_invalid` for a target
-that is not a filename or a known prefix, `reference_not_found` when no
-registered Area holds it, and `repository_not_local` when an Area registers the
-Repository but no checkout is configured for it on this machine.
+Three cases fail with a non-zero exit code: `reference_invalid` for Wikilink
+syntax or a target that is not a filename or a known prefix,
+`reference_not_found` when no registered Area holds it, and
+`repository_not_local` when an Area registers the Repository but no checkout is
+configured for it on this machine.
 
 ## `dokito validate`
 

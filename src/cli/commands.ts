@@ -49,6 +49,9 @@ Global options:
 Command options:
   --cwd <path>     Resolve the Area and Repository from another directory
   --links          Resolve every link and Repository checkout
+
+A <reference> is a filename, 'project:<id>', 'task:<ULID>' or 'repo:<id>[/path]'.
+Pass the target inside the Wikilink, without '[[...]]' or '|display text'.
 `;
 }
 

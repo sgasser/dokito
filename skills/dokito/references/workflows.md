@@ -30,6 +30,12 @@ An Area or Resource is active when its `state` field is omitted. Clearing an
 optional Project or Task property means removing that field rather than
 writing `null` or an empty scalar.
 
+## Change many files
+
+Split work that crosses Areas or many files into bounded units, normally one
+Area and one goal per patch, and validate after every unit. One large patch
+hides which change broke validation.
+
 ## Remove
 
 Remove only when deletion is the intended user outcome. Search typed relations
