@@ -47,16 +47,16 @@ describe("WorkspaceStore", () => {
     });
     const first = await store.snapshot({ area: "product" });
     const firstArea = requireArea(first.scope);
-    const [firstDocuments, firstRelations, firstProjects, firstTasks] =
+    const [firstDocuments, firstStatuses, firstProjects, firstTasks] =
       await Promise.all([
         first.documents(firstArea),
-        first.relations(firstArea),
+        first.statuses(firstArea),
         first.projects(firstArea),
         first.tasks(firstArea),
       ]);
 
     expect(await first.documents(firstArea)).toBe(firstDocuments);
-    expect(await first.relations(firstArea)).toBe(firstRelations);
+    expect(await first.statuses(firstArea)).toBe(firstStatuses);
     expect(await first.projects(firstArea)).toBe(firstProjects);
     expect(await first.tasks(firstArea)).toBe(firstTasks);
     expect(firstTasks.every((task) => !("content" in task))).toBeTrue();
@@ -73,7 +73,7 @@ describe("WorkspaceStore", () => {
     const unchanged = await store.snapshot({ area: "product" });
     const unchangedArea = requireArea(unchanged.scope);
     expect(await unchanged.documents(unchangedArea)).not.toBe(firstDocuments);
-    expect(await unchanged.relations(unchangedArea)).not.toBe(firstRelations);
+    expect(await unchanged.statuses(unchangedArea)).not.toBe(firstStatuses);
     expect(await unchanged.projects(unchangedArea)).not.toBe(firstProjects);
     expect(await unchanged.tasks(unchangedArea)).not.toBe(firstTasks);
     expect(inventories).toBe(2);
@@ -87,9 +87,9 @@ describe("WorkspaceStore", () => {
     const changed = await store.snapshot({ area: "product" });
     const changedArea = requireArea(changed.scope);
     const changedDocuments = await changed.documents(changedArea);
-    const changedRelations = await changed.relations(changedArea);
+    const changedStatuses = await changed.statuses(changedArea);
     expect(changedDocuments).not.toBe(firstDocuments);
-    expect(changedRelations).not.toBe(firstRelations);
+    expect(changedStatuses).not.toBe(firstStatuses);
     expect(
       changedDocuments.documents.find(
         (document) => document.relativePath === "resources/architecture.md",

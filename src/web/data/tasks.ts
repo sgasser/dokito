@@ -1,4 +1,5 @@
 import { fail } from "../../core/error";
+import { outboundLinks } from "../../core/links";
 import {
   isTaskLifecycleFilter,
   type TaskLifecycleFilter,
@@ -119,7 +120,7 @@ export async function loadTasksView(
     filter,
     ...(selected && selectedRoot && selectedEntry
       ? await (async () => {
-          const [item, task, documents, relations] = await Promise.all([
+          const [item, task, documents] = await Promise.all([
             enrichWebWorkItem(
               {
                 areaId: selectedRoot.manifest.id,
@@ -132,15 +133,13 @@ export async function loadTasksView(
             ),
             snapshot.task(selectedRoot, selected.id),
             snapshot.documents(selectedRoot),
-            snapshot.relations(selectedRoot),
           ]);
           fail(
             task !== undefined,
             "task_not_found",
             `Task not found in Area '${selectedRoot.manifest.id}': ${selected.id}`,
           );
-          const linkedPaths =
-            relations.graph.get(task.relativePath)?.outbound ?? [];
+          const linkedPaths = outboundLinks(documents.documents, task);
           return {
             selected: {
               item,
