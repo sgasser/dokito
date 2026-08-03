@@ -3,6 +3,7 @@ import { cp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { registerArea } from "../../src/core/config";
 import {
+  loadFocusView,
   loadProjectsView,
   loadProjectView,
   loadResourcesView,
@@ -91,6 +92,9 @@ describe("Web", () => {
     expect(tasksResponse.status).toBe(200);
     expect(tasksHtml).toContain("Dokito — Tasks");
     expect(tasksHtml).toContain("Coordinate the product launch");
+    expect(tasksHtml).not.toContain(
+      "Use a staged launch once every surface reports ready.",
+    );
     expect(tasksHtml).toContain('data-work-filters=""');
     expect(tasksHtml).toContain("<!doctype html>");
     expect(tasksNavigationResponse.status).toBe(200);
@@ -123,6 +127,16 @@ describe("Web", () => {
 
     expect(detailHtml).toContain("01K1ABCXYZ0000000000000000");
     expect(detailHtml).toContain("Verify the release across the Web app");
+    expect(detailHtml).toContain(">Rollout checklist</h2>");
+    expect(detailHtml).toContain(">Decision</h2>");
+    expect(detailHtml).toContain(">product context</a>");
+    expect(detailHtml).toContain("<table>");
+    expect(detailHtml).toContain('<pre><code class="language-sh"');
+    expect(detailHtml.match(/data-task-body=""/g)).toHaveLength(2);
+    expect(detailHtml).not.toContain("status: in_progress");
+    expect(detailHtml).not.toMatch(
+      /<h1[^>]*>Coordinate the product launch<\/h1>/,
+    );
     expect(detailHtml).toContain("In progress");
     expect(detailHtml).toContain("Assigned to Launch Agent");
     expect(detailHtml).toContain("Assignee");
@@ -487,9 +501,16 @@ describe("Web", () => {
       configPath: workspace.configPath,
     });
 
-    const tasks = await loadTasksView({
-      configPath: workspace.configPath,
-    });
+    const taskId = "01K1ABCXYZ0000000000000000";
+    const [tasks, selectedTask, focus] = await Promise.all([
+      loadTasksView({ configPath: workspace.configPath }),
+      loadTasksView({
+        configPath: workspace.configPath,
+        area: "product",
+        task: taskId,
+      }),
+      loadFocusView({ configPath: workspace.configPath }),
+    ]);
     const resources = await loadResourcesView({
       configPath: workspace.configPath,
       area: "product",
@@ -498,6 +519,16 @@ describe("Web", () => {
     expect(tasks.view).toBe("tasks");
     expect(tasks.items.length).toBeGreaterThan(0);
     expect("content" in (tasks.items[0]?.task ?? {})).toBeFalse();
+    expect(JSON.stringify(tasks)).not.toContain(
+      "Use a staged launch once every surface reports ready.",
+    );
+    expect(selectedTask.selected?.task.content).toContain(
+      "Use a staged launch once every surface reports ready.",
+    );
+    expect("content" in (selectedTask.selected?.item.task ?? {})).toBeFalse();
+    expect(JSON.stringify(focus)).not.toContain(
+      "Use a staged launch once every surface reports ready.",
+    );
     expect(resources.view).toBe("resources");
     expect(resources.areas[0]?.documents.length).toBeGreaterThan(0);
     expect("workItems" in (resources.areas[0] ?? {})).toBeFalse();

@@ -169,6 +169,7 @@ test("a failed enhancement falls back to the complete page", async ({
 test("task detail navigation preserves the list and restores its row", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1280, height: 420 });
   await page.goto("/area/product/tasks");
 
   const list = page.locator("[data-work-list]");
@@ -188,12 +189,95 @@ test("task detail navigation preserves the list and restores its row", async ({
   await expect(
     page.locator(`[data-work-row][data-work-item="${item}"]`),
   ).toHaveAttribute("aria-current", "page");
+  const sidebar = page.locator("[data-work-detail] aside");
+  const sidebarBody = sidebar.locator("[data-task-body]");
+  expect(
+    await sidebar.evaluate((node) => {
+      const properties = node.querySelector("[data-task-properties]");
+      const body = node.querySelector("[data-task-body]");
+      return properties?.nextElementSibling === body;
+    }),
+  ).toBe(true);
+  await expect(
+    sidebar.getByRole("heading", {
+      name: "Coordinate the product launch",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(sidebarBody.locator("h1")).toHaveCount(0);
+  await expect(
+    sidebarBody.getByText("Rollout checklist", { exact: true }),
+  ).toBeVisible();
+  await expect(sidebarBody.getByRole("listitem")).toHaveCount(2);
+  await expect(
+    sidebarBody.getByRole("link", { name: "product context" }),
+  ).toHaveAttribute("href", "/area/product/resources/resources/product.md");
+  await expect(sidebarBody.locator("table")).toBeVisible();
+  await expect(sidebarBody.locator("pre code")).toHaveText("bun run check");
+  await expect(
+    sidebar.getByText(
+      "Verify the release across the Web app, API, and website.",
+      { exact: true },
+    ),
+  ).toHaveCount(1);
+  await expect(sidebarBody).not.toContainText("status: in_progress");
+  const sidebarScroll = page.locator("[data-task-sidebar-scroll]");
+  expect(
+    await sidebarScroll.evaluate(
+      (node) => getComputedStyle(node).overflowY === "auto",
+    ),
+  ).toBe(true);
+  expect(
+    await sidebarScroll.evaluate(
+      (node) => node.scrollHeight > node.clientHeight,
+    ),
+  ).toBe(true);
+  const sidebarText = await sidebarBody.innerText();
   const enlarge = page.getByRole("button", { name: "Enlarge Task" });
   await expect(enlarge).toBeVisible();
   await enlarge.click();
   await expect(
     page.getByRole("dialog", { name: /Coordinate the product launch/ }),
   ).toBeVisible();
+  const dialog = page.getByRole("dialog", {
+    name: /Coordinate the product launch/,
+  });
+  const dialogBody = dialog.locator("[data-task-body]");
+  expect(
+    await dialog.evaluate((node) => {
+      const properties = node.querySelector("[data-task-properties]");
+      const body = node.querySelector("[data-task-body]");
+      return properties?.nextElementSibling === body;
+    }),
+  ).toBe(true);
+  await expect(
+    dialog.getByRole("heading", {
+      name: "Coordinate the product launch",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(dialogBody.locator("h1")).toHaveCount(0);
+  await expect(dialogBody.getByText("Decision", { exact: true })).toBeVisible();
+  await expect(dialogBody.locator("table")).toBeVisible();
+  await expect(dialogBody.locator("pre code")).toHaveText("bun run check");
+  await expect(
+    dialog.getByText(
+      "Verify the release across the Web app, API, and website.",
+      { exact: true },
+    ),
+  ).toHaveCount(1);
+  expect(await dialogBody.innerText()).toBe(sidebarText);
+  const dialogScroll = page.locator("[data-task-dialog-scroll]");
+  expect(
+    await dialogScroll.evaluate(
+      (node) => getComputedStyle(node).overflowY === "auto",
+    ),
+  ).toBe(true);
+  expect(
+    await dialogScroll.evaluate(
+      (node) => node.scrollHeight > node.clientHeight,
+    ),
+  ).toBe(true);
   await page.keyboard.press("Escape");
 
   await page.goBack();
@@ -206,6 +290,21 @@ test("task detail navigation preserves the list and restores its row", async ({
   await expect(
     page.locator(`[data-work-row][data-work-item="${item}"]`),
   ).toBeFocused();
+});
+
+test("Focus and Tasks open the same complete Task detail", async ({ page }) => {
+  const taskId = "01K1ABCXYZ0000000000000000";
+  await page.goto("/area/product/tasks");
+  await page.locator(`[data-work-item="product:${taskId}"]`).click();
+  const tasksBody = await page.locator("[data-task-body]").first().innerText();
+
+  await page.goto("/focus");
+  await page.locator(`a[href="/area/product/tasks/${taskId}"]`).click();
+
+  await expect(page).toHaveURL(`/area/product/tasks/${taskId}`);
+  expect(await page.locator("[data-task-body]").first().innerText()).toBe(
+    tasksBody,
+  );
 });
 
 test("resource explorer preserves the archived filter for current documents", async ({

@@ -3,7 +3,7 @@ import {
   type TaskStatus,
   taskStatusMatches,
 } from "../core/task-model";
-import type { ProjectDocument, TaskDocument } from "../core/types";
+import type { LocalTask, ProjectDocument } from "../core/types";
 import { dueInDays } from "./format";
 
 /**
@@ -21,7 +21,7 @@ export type FocusBandId = "urgent" | "in_progress" | "due_soon";
 export interface FocusArea {
   id: string;
   name: string;
-  tasks: readonly TaskDocument[];
+  tasks: readonly LocalTask[];
   projects: readonly ProjectDocument[];
 }
 
@@ -112,7 +112,7 @@ function byDue(a: FocusTask, b: FocusTask): number {
 
 function toFocusTask(
   area: FocusArea,
-  task: TaskDocument,
+  task: LocalTask,
   projectTitles: ReadonlyMap<string, string>,
   now: Date,
   timeZone?: string,

@@ -144,6 +144,11 @@
       0 28px 72px rgb(29 32 37 / 0.24);
   }
 
+  .dokito-task-dialog[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
   .dokito-palette::backdrop,
   .dokito-task-dialog::backdrop {
     background: rgb(29 32 37 / 0.15);

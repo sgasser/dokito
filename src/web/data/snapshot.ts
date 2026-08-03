@@ -13,7 +13,12 @@ import {
   loadTasks,
 } from "../../core/manifests";
 import { areaState } from "../../core/state-model";
-import type { ProjectDocument, TaskDocument } from "../../core/types";
+import { toLocalTask } from "../../core/tasks";
+import type {
+  LocalTask,
+  ProjectDocument,
+  TaskDocument,
+} from "../../core/types";
 import {
   createDocumentRelations,
   type DocumentRelations,
@@ -37,6 +42,7 @@ interface AreaData {
   relations?: Promise<DocumentRelations>;
   projects?: Promise<LoadedProjects>;
   tasks?: Promise<LoadedTasks>;
+  localTasks?: Promise<LocalTask[]>;
 }
 
 export interface WorkspaceStoreOptions {
@@ -140,8 +146,20 @@ export class WorkspaceSnapshot {
     return this.loadedProjects(area).then((loaded) => loaded.projects);
   }
 
-  tasks(area: ResolvedWebArea): Promise<TaskDocument[]> {
-    return this.loadedTasks(area).then((loaded) => loaded.tasks);
+  tasks(area: ResolvedWebArea): Promise<LocalTask[]> {
+    return this.areaData(area).then((data) => {
+      data.localTasks ??= this.loadedTasks(area).then((loaded) =>
+        loaded.tasks.map(toLocalTask),
+      );
+      return data.localTasks;
+    });
+  }
+
+  /** The full Markdown document is exposed only for one selected Task. */
+  task(area: ResolvedWebArea, id: string): Promise<TaskDocument | undefined> {
+    return this.loadedTasks(area).then((loaded) =>
+      loaded.tasks.find((task) => task.id === id),
+    );
   }
 
   /**

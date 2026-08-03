@@ -183,8 +183,8 @@ export async function buildWebWorkItems(
 
 /**
  * Enrich one selected local Task with the action that needs filesystem
- * validation and its body. Lists stay cheap; detail keeps the exact same
- * Conductor contract.
+ * validation. Its full document is loaded beside this item by the detail path;
+ * lists stay cheap and keep the same Conductor contract.
  */
 export async function enrichWebWorkItem(
   input: BuildWebWorkItemsInput,

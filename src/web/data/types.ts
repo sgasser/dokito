@@ -1,5 +1,9 @@
 import type { DocumentState } from "../../core/state-model";
-import type { ProjectDocument, TaskLifecycleFilter } from "../../core/types";
+import type {
+  ProjectDocument,
+  TaskDocument,
+  TaskLifecycleFilter,
+} from "../../core/types";
 import type { FocusSelection } from "../focus";
 import type { Facet, ProjectSummary, WorkFilter } from "../model";
 import type { WebWorkItem } from "../work-items";
@@ -69,6 +73,7 @@ interface WebDashboardBase {
 
 interface WebTaskDetail {
   item: WebWorkItem;
+  task: TaskDocument;
   documents: WebDocumentRef[];
   /**
    * The Task names a Repository that Dokito has no checkout for, so

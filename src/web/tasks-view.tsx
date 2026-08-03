@@ -1,3 +1,5 @@
+import { createDocumentLookup, resolveLink } from "../core/links";
+import { documentBody } from "../core/markdown";
 import {
   taskLifecycleFilterLabel,
   taskPriorityLabel,
@@ -9,6 +11,7 @@ import { FilterMenu } from "./filters";
 import { formatDue } from "./format";
 import { CloseIcon } from "./icons";
 import { listLabels } from "./kinds";
+import { MarkdownContent, markdownImageHref } from "./markdown";
 import { groupWorkItems, workItemGroup } from "./model";
 import { routes } from "./routes";
 import { cx, FILTER, SHELL } from "./ui";
@@ -21,7 +24,6 @@ interface TasksViewProps {
 
 const detailTitleClass =
   "text-head leading-[1.35] font-semibold tracking-[-0.018em] text-pretty text-ink";
-const detailTextClass = "mt-2.5 text-ui-md leading-[1.6] text-ink-soft";
 const propertiesListClass = "mt-[22px] flex flex-col gap-[9px]";
 const propertyRowClass = "flex items-start gap-3";
 const propertyLabelClass = "w-[92px] flex-none text-ui-sm text-muted";
@@ -57,6 +59,45 @@ function TaskResources({
         </a>
       ))}
     </>
+  );
+}
+
+function TaskBody({
+  areaId,
+  documents,
+  task,
+}: {
+  areaId: string;
+  documents: WebDocumentRef[];
+  task: NonNullable<WebTasksDashboardData["selected"]>["task"];
+}) {
+  const content = documentBody(task.content);
+  if (!content) {
+    return null;
+  }
+  const lookup = createDocumentLookup(documents);
+
+  return (
+    <div className="mt-[22px]" data-task-body="">
+      <MarkdownContent
+        className="max-w-none text-ui-md"
+        content={content}
+        resolveDocumentHref={(target) => {
+          const linked = resolveLink(
+            task.relativePath,
+            target,
+            documents,
+            lookup,
+          );
+          return linked
+            ? routes.document(areaId, linked.relativePath)
+            : undefined;
+        }}
+        resolveImageSrc={(target) =>
+          markdownImageHref(areaId, task.relativePath, target)
+        }
+      />
+    </div>
   );
 }
 
@@ -261,53 +302,53 @@ function Detail({ data }: TasksViewProps) {
     return <div className="contents" data-work-detail="" />;
   }
 
-  const { item } = selected;
-  const due = formatDue(item.task.due);
+  const { item, task } = selected;
+  const due = formatDue(task.due);
   const properties = [
     {
       label: "Status",
       value: taskStatusLabel(item.status),
       peek: true,
     },
-    ...(item.task.priority
+    ...(task.priority
       ? [
           {
             label: "Priority",
-            value: taskPriorityLabel(item.task.priority),
+            value: taskPriorityLabel(task.priority),
             peek: false,
           },
         ]
       : []),
-    ...(item.task.assignee
+    ...(task.assignee
       ? [
           {
             label: "Assignee",
-            value: item.task.assignee,
+            value: task.assignee,
             peek: true,
           },
         ]
       : []),
-    ...(item.task.project
+    ...(task.project
       ? [
           {
             label: "Project",
             value:
-              data.projects.find((project) => project.id === item.task.project)
-                ?.title ?? item.task.project,
+              data.projects.find((project) => project.id === task.project)
+                ?.title ?? task.project,
             peek: true,
-            href: routes.project(item.areaId, item.task.project),
+            href: routes.project(item.areaId, task.project),
           },
         ]
       : []),
     { label: "Area", value: item.areaName, peek: false },
-    ...(item.task.repository
-      ? [{ label: "Repository", value: item.task.repository, peek: false }]
+    ...(task.repository
+      ? [{ label: "Repository", value: task.repository, peek: false }]
       : []),
     ...(due.label ? [{ label: "Due", value: due.label, peek: true }] : []),
   ];
   return (
     <div className="contents" data-work-detail="">
-      <aside className="flex flex-none flex-col border-line bg-panel rail:w-[392px] rail:border-l">
+      <aside className="flex min-h-0 flex-none flex-col overflow-hidden border-line bg-panel rail:w-[392px] rail:border-l">
         <div className="flex h-10 flex-none items-center justify-between gap-2 border-b border-line py-0 pr-2.5 pl-3.5">
           <span className="font-mono text-meta text-muted">
             {detailRef(item)}
@@ -336,7 +377,10 @@ function Detail({ data }: TasksViewProps) {
             </a>
           </span>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-10">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-10"
+          data-task-sidebar-scroll=""
+        >
           <a
             className={SHELL.backLink}
             href={tasksUrl({
@@ -353,13 +397,9 @@ function Detail({ data }: TasksViewProps) {
             data-navigation-focus=""
             tabIndex={-1}
           >
-            {item.title}
+            {task.title}
           </h2>
-          {item.task.description ? (
-            <p className={detailTextClass}>{item.task.description}</p>
-          ) : null}
-
-          <div className={propertiesListClass}>
+          <div className={propertiesListClass} data-task-properties="">
             {properties.map((property) => (
               <div className={propertyRowClass} key={property.label}>
                 <span className={propertyLabelClass}>{property.label}</span>
@@ -376,6 +416,11 @@ function Detail({ data }: TasksViewProps) {
               </div>
             ))}
           </div>
+          <TaskBody
+            areaId={item.areaId}
+            documents={selected.documents}
+            task={task}
+          />
 
           {selected.repositoryWithoutCheckout ? (
             <p className="mt-[22px] text-ui-sm/normal text-muted">
@@ -415,14 +460,14 @@ function Detail({ data }: TasksViewProps) {
             </button>
           </form>
         </div>
-        <div className="min-h-0 overflow-y-auto px-[26px] pt-6 pb-[30px]">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-[26px] pt-6 pb-[30px]"
+          data-task-dialog-scroll=""
+        >
           <h2 className={detailTitleClass} id="dokito-task-dialog-title">
-            {item.title}
+            {task.title}
           </h2>
-          {item.task.description ? (
-            <p className={detailTextClass}>{item.task.description}</p>
-          ) : null}
-          <div className={propertiesListClass}>
+          <div className={propertiesListClass} data-task-properties="">
             {properties
               .filter((property) => property.peek)
               .map((property) => (
@@ -432,6 +477,11 @@ function Detail({ data }: TasksViewProps) {
                 </div>
               ))}
           </div>
+          <TaskBody
+            areaId={item.areaId}
+            documents={selected.documents}
+            task={task}
+          />
         </div>
       </dialog>
     </div>
