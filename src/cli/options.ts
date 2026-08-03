@@ -29,6 +29,8 @@ const CLI_OPTIONS = {
   raw: { type: "boolean" },
   links: { type: "boolean" },
   summary: { type: "boolean" },
+  area: { type: "string" },
+  status: { type: "string" },
 } as const satisfies ParseArgsOptionsConfig;
 
 export function parseCli(argv: string[]): GlobalOptions {

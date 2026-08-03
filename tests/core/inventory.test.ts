@@ -129,6 +129,47 @@ describe("Global work inventory", () => {
     });
   });
 
+  /**
+   * A mistyped filter that answered with an empty list would read as "nothing
+   * of that kind exists", so both filters are checked against what was read.
+   */
+  test("narrows a listing to one Area and one status", async () => {
+    const fixture = await setup();
+
+    const personal = await listRegisteredTasks({
+      configPath: fixture.configPath,
+      area: "personal",
+    });
+    expect(personal.areaCount).toBe(1);
+    expect(personal.tasks.map((task) => task.status)).toEqual([
+      "in_progress",
+      "done",
+    ]);
+
+    const inProgress = await listRegisteredProjects({
+      configPath: fixture.configPath,
+      status: "active",
+    });
+    expect(inProgress.projects.map((project) => project.area)).toEqual([
+      "product",
+    ]);
+
+    await expect(
+      summarizeRegisteredTasks({
+        configPath: fixture.configPath,
+        area: "personal",
+      }),
+    ).resolves.toMatchObject({
+      areaCount: 1,
+      total: 2,
+      byArea: { personal: 2 },
+    });
+
+    await expect(
+      listRegisteredTasks({ configPath: fixture.configPath, area: "nowhere" }),
+    ).rejects.toMatchObject({ code: "area_not_found" });
+  });
+
   test("keeps readable Areas when other registrations fail", async () => {
     const fixture = await setup();
     const brokenRoot = path.join(fixture.root, "broken-area");

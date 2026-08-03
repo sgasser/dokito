@@ -136,8 +136,8 @@ Unavailable or mismatched registrations remain visible with
 ## `dokito projects` and `dokito tasks`
 
 ```bash
-dokito projects [--summary]
-dokito tasks [--summary]
+dokito projects [--area <id>] [--status <status>] [--summary]
+dokito tasks [--area <id>] [--status <status>] [--summary]
 ```
 
 These commands list every Project or local Markdown Task from every readable
@@ -178,6 +178,18 @@ The complete Markdown `content` is omitted. Three cases produce a warning:
   in that Area is still listed and `areaCount` counts the Area as read;
 - a Task whose Project cannot be resolved is listed, with a warning that its
   reference is unresolved.
+
+`--area` and `--status` narrow the reading before it is returned, so a caller
+that wants one Area or one status needs no second tool. They apply to the items
+and to `--summary` alike, and `areaCount` then counts what remains. Both are
+checked rather than merely filtered: an Area outside the readable registry
+fails with `area_not_found`, and a status the model does not define fails with
+`invalid_usage` naming the allowed values, because a mistyped filter would
+otherwise answer with a plausible empty list.
+
+```bash
+dokito tasks --area product --status in_progress --json
+```
 
 `--summary` replaces the items with their counts, so an overview costs a few
 lines instead of the whole registry. `byStatus` names every status of the model

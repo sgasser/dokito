@@ -1,6 +1,6 @@
 import { loadRegisteredAreas, type RegisteredArea } from "./areas";
 import { loadConfig } from "./config";
-import { normalizeError } from "./error";
+import { DokitoError, normalizeError } from "./error";
 import {
   type DocumentProblem,
   documentProblemWarning,
@@ -23,6 +23,16 @@ interface AreaIdentity {
 
 type ListedProject = AreaIdentity & Omit<ProjectDocument, "content">;
 type ListedTask = AreaIdentity & Omit<TaskDocument, "content">;
+
+/** Narrowing here keeps a selection answerable without a second tool. */
+interface InventoryQuery<Status extends string> {
+  configPath: string;
+  area?: string;
+  status?: Status;
+}
+
+type ProjectQuery = InventoryQuery<ProjectStatus>;
+type TaskQuery = InventoryQuery<TaskStatus>;
 
 /** Counts an overview needs, so a caller never reads every item for them. */
 export interface InventorySummary<Status extends string> {
@@ -104,6 +114,40 @@ async function readRegisteredItems<T>(
   };
 }
 
+/**
+ * A named Area that was not read is a mistyped name, not an empty collection,
+ * so it fails rather than answering with nothing.
+ */
+function select<Item extends { area: string; status: string }>(
+  loaded: {
+    configPath: string;
+    areaIds: string[];
+    items: Item[];
+    warnings: string[];
+  },
+  query: { area?: string; status?: string },
+) {
+  const { area, status } = query;
+  if (area !== undefined && !loaded.areaIds.includes(area)) {
+    throw new DokitoError(
+      "area_not_found",
+      `No readable Area '${area}'. Readable Areas: ${
+        loaded.areaIds.join(", ") || "none"
+      }.`,
+      { area, readable: loaded.areaIds },
+    );
+  }
+  return {
+    ...loaded,
+    areaIds: area === undefined ? loaded.areaIds : [area],
+    items: loaded.items.filter(
+      (item) =>
+        (area === undefined || item.area === area) &&
+        (status === undefined || item.status === status),
+    ),
+  };
+}
+
 function summarize<Status extends string>(
   loaded: {
     configPath: string;
@@ -165,8 +209,8 @@ function readProjects(configPath: string) {
   });
 }
 
-export async function listRegisteredProjects(input: { configPath: string }) {
-  const loaded = await readProjects(input.configPath);
+export async function listRegisteredProjects(input: ProjectQuery) {
+  const loaded = select(await readProjects(input.configPath), input);
 
   return {
     configPath: loaded.configPath,
@@ -176,10 +220,13 @@ export async function listRegisteredProjects(input: { configPath: string }) {
   };
 }
 
-export async function summarizeRegisteredProjects(input: {
-  configPath: string;
-}): Promise<InventorySummary<ProjectStatus>> {
-  return summarize(await readProjects(input.configPath), PROJECT_STATUS_VALUES);
+export async function summarizeRegisteredProjects(
+  input: ProjectQuery,
+): Promise<InventorySummary<ProjectStatus>> {
+  return summarize(
+    select(await readProjects(input.configPath), input),
+    PROJECT_STATUS_VALUES,
+  );
 }
 
 function readTasks(configPath: string) {
@@ -202,8 +249,8 @@ function readTasks(configPath: string) {
   });
 }
 
-export async function listRegisteredTasks(input: { configPath: string }) {
-  const loaded = await readTasks(input.configPath);
+export async function listRegisteredTasks(input: TaskQuery) {
+  const loaded = select(await readTasks(input.configPath), input);
 
   return {
     configPath: loaded.configPath,
@@ -213,8 +260,11 @@ export async function listRegisteredTasks(input: { configPath: string }) {
   };
 }
 
-export async function summarizeRegisteredTasks(input: {
-  configPath: string;
-}): Promise<InventorySummary<TaskStatus>> {
-  return summarize(await readTasks(input.configPath), TASK_STATUS_VALUES);
+export async function summarizeRegisteredTasks(
+  input: TaskQuery,
+): Promise<InventorySummary<TaskStatus>> {
+  return summarize(
+    select(await readTasks(input.configPath), input),
+    TASK_STATUS_VALUES,
+  );
 }

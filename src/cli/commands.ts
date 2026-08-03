@@ -10,7 +10,9 @@ import {
   summarizeRegisteredProjects,
   summarizeRegisteredTasks,
 } from "../core/inventory";
+import { isProjectStatus, PROJECT_STATUS_VALUES } from "../core/project-model";
 import { resolveReference } from "../core/resolve";
+import { isTaskStatus, TASK_STATUS_VALUES } from "../core/task-model";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
 import {
@@ -35,8 +37,8 @@ Usage:
 Commands:
   register <area-path> [--cwd <path>]
   areas
-  projects [--summary]
-  tasks [--summary]
+  projects [--area <id>] [--status <status>] [--summary]
+  tasks [--area <id>] [--status <status>] [--summary]
   context [--raw] [--cwd <path>]
   resolve <reference> [--cwd <path>]
   validate [--links] [--cwd <path>]
@@ -56,6 +58,8 @@ Command options:
   --cwd <path>     Resolve the Area and Repository from another directory
   --links          Resolve every link and Repository checkout
   --summary        Return counts by status and Area instead of every item
+  --area <id>      Restrict a listing to one readable Area
+  --status <s>     Restrict a listing to one Project or Task status
 
 A <reference> is a filename, 'project:<id>', 'task:<ULID>' or 'repo:<id>[/path]'.
 Pass the target inside the Wikilink, without '[[...]]' or '|display text'.
@@ -169,6 +173,28 @@ function tasksHuman(
   ].join("\n");
 }
 
+/** Typed at the boundary, so an unknown value never reaches a comparison. */
+function listingQuery<Status extends string>(
+  global: GlobalOptions,
+  collection: "Project" | "Task",
+  isStatus: (value: string) => value is Status,
+  allowed: readonly Status[],
+): { configPath: string; area?: string; status?: Status } {
+  const status = global.values.get("status");
+  if (status !== undefined && !isStatus(status)) {
+    throw new DokitoError(
+      "invalid_usage",
+      `Unknown ${collection} status '${status}'. Use one of: ${allowed.join(", ")}.`,
+    );
+  }
+  const area = global.values.get("area");
+  return {
+    configPath: global.configPath,
+    ...(area !== undefined ? { area } : {}),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
 function counts(values: Record<string, number>): string {
   return Object.entries(values)
     .map(([key, value]) => `${key} ${value}`)
@@ -272,44 +298,48 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   }
 
   if (command === "projects") {
-    assertOptions(global, ["summary"]);
+    assertOptions(global, ["summary", "area", "status"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "projects accepts no arguments.");
     }
+    const query = listingQuery(
+      global,
+      "Project",
+      isProjectStatus,
+      PROJECT_STATUS_VALUES,
+    );
     await requireNamedConfig(global);
     if (global.booleans.has("summary")) {
-      const summary = await summarizeRegisteredProjects({
-        configPath: global.configPath,
-      });
+      const summary = await summarizeRegisteredProjects(query);
       success(global.json, summary, summaryHuman("Projects", summary));
       writeWarnings(global.json, summary.warnings);
       return;
     }
-    const result = await listRegisteredProjects({
-      configPath: global.configPath,
-    });
+    const result = await listRegisteredProjects(query);
     success(global.json, result, projectsHuman(result));
     writeWarnings(global.json, result.warnings);
     return;
   }
 
   if (command === "tasks") {
-    assertOptions(global, ["summary"]);
+    assertOptions(global, ["summary", "area", "status"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
     }
+    const query = listingQuery(
+      global,
+      "Task",
+      isTaskStatus,
+      TASK_STATUS_VALUES,
+    );
     await requireNamedConfig(global);
     if (global.booleans.has("summary")) {
-      const summary = await summarizeRegisteredTasks({
-        configPath: global.configPath,
-      });
+      const summary = await summarizeRegisteredTasks(query);
       success(global.json, summary, summaryHuman("Tasks", summary));
       writeWarnings(global.json, summary.warnings);
       return;
     }
-    const result = await listRegisteredTasks({
-      configPath: global.configPath,
-    });
+    const result = await listRegisteredTasks(query);
     success(global.json, result, tasksHuman(result));
     writeWarnings(global.json, result.warnings);
     return;

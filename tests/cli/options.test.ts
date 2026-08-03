@@ -32,29 +32,70 @@ describe("The --cwd option", () => {
   );
 });
 
-/** Only the two registry listings count anything, so only they take the flag. */
-describe("The --summary option", () => {
-  test.each(["areas", "context", "validate", "id", "web"])(
-    "is refused by %s",
-    async (command) => {
+/** Only the two registry listings read a collection, so only they take these. */
+describe("The listing options", () => {
+  test("are refused by areas, which reads no collection", async () => {
+    for (const option of [
+      ["--summary"],
+      ["--area", "product"],
+      ["--status", "done"],
+    ]) {
       await expect(
-        runCli(
-          parseCli(["--config", "/nonexistent.yaml", "--summary", command]),
-        ),
-      ).rejects.toThrow("Option --summary is not valid for this command.");
-    },
-  );
+        runCli(parseCli(["--config", "/nonexistent.yaml", ...option, "areas"])),
+      ).rejects.toThrow(`Option ${option[0]} is not valid for this command.`);
+    }
+  });
 
   test.each(["projects", "tasks"])(
-    "reaches the registry through %s",
+    "reach the registry through %s",
     async (command) => {
       await expect(
         runCli(
-          parseCli(["--config", "/nonexistent.yaml", "--summary", command]),
+          parseCli([
+            "--config",
+            "/nonexistent.yaml",
+            "--summary",
+            "--area",
+            "product",
+            command,
+          ]),
         ),
       ).rejects.toMatchObject({ code: "config_not_found" });
     },
   );
+
+  /**
+   * 'urgent' is a Task priority, so the mistake is easy to make and the message
+   * has to name what the option actually takes.
+   */
+  test("rejects a status the model does not define, before reading", async () => {
+    await expect(
+      runCli(
+        parseCli([
+          "--config",
+          "/nonexistent.yaml",
+          "--status",
+          "urgent",
+          "tasks",
+        ]),
+      ),
+    ).rejects.toThrow(
+      "Unknown Task status 'urgent'. Use one of: todo, in_progress, waiting, someday, done, cancelled.",
+    );
+    await expect(
+      runCli(
+        parseCli([
+          "--config",
+          "/nonexistent.yaml",
+          "--status",
+          "todo",
+          "projects",
+        ]),
+      ),
+    ).rejects.toThrow(
+      "Unknown Project status 'todo'. Use one of: planned, active, done, cancelled.",
+    );
+  });
 });
 
 /** Git is the second of two ways in, so its failure named the wrong subject. */

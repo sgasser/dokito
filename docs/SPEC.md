@@ -484,6 +484,10 @@ registered Area, attach Area identity and paths to each result, omit full
 Markdown content, and list every local item. Invalid or unavailable Areas do
 not hide readable Areas and produce warnings.
 
+`--area` and `--status` narrow that reading to one readable Area or one status
+of the model. An Area that was not read and an undefined status fail rather
+than returning an empty list.
+
 `--summary` returns the same reading as counts instead of items: the total, one
 entry per status of the model, one entry per Area that was read, and the same
 warnings. Its size does not grow with the registry.

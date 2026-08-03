@@ -3,7 +3,22 @@
 ## Discover and read
 
 Run `dokito context`, then use the printed paths. Read `dokito.yaml` for
-Repository registrations. Search only inside the printed collection paths.
+Repository registrations.
+
+A reference you already hold never needs a search: `dokito resolve '<target>'`
+prints its path directly. To find a document you cannot name yet, work outwards
+from the narrowest signal and stop at the level that answers, because the
+search is lexical and unranked and a body match on a common word says nothing
+about what the document is about:
+
+```bash
+rg --files projects resources tasks | rg -i '<term>'   # identity
+rg -ni '^#{1,6}.*<term>' projects resources tasks      # heading
+rg -ni '<term>' projects resources tasks               # body
+```
+
+Bound a broad body search before printing it: pass `--max-count` or count the
+hits first, so a common word cannot fill the answer with prose.
 
 ## Bounded global listings
 
@@ -13,8 +28,19 @@ the warnings the listing would report. Their output stays a few lines whatever
 the registry holds, so use them for counts, totals, and a compact picture.
 
 Without `--summary`, both commands return every item of every registered Area.
-Reach for that only for a selection you will act on, and never repeat a listing
-merely because an unnarrowed first attempt was truncated.
+Narrow the listing with `--area` and `--status` before it reaches your output,
+and never repeat a listing merely because an unnarrowed first attempt was
+truncated.
+
+```bash
+dokito projects --summary
+dokito tasks --area product --status in_progress
+```
+
+Both filters are checked: an Area that was not read and a status the model does
+not define fail instead of answering with an empty list. Every item still names
+its Area and its file identity, and the warnings are printed with the listing,
+so the next step needs no second tool.
 
 ## Create
 

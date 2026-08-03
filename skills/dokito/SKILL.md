@@ -16,8 +16,11 @@ Web runtime.
 1. Run `dokito context`.
 2. Read the exact `context.md` printed after the summary. Treat the printed
    Area root and collection paths as authoritative local paths.
-3. Read `dokito.yaml` directly from the Area root. Search for model files only
-   inside the printed collection paths.
+3. Read `dokito.yaml` directly from the Area root. Find documents inside the
+   printed collection paths in that order: filename, then heading, then body.
+   Search is lexical and unranked, so a broad body search answers with prose
+   that merely uses the word. See "Discover and read" in
+   [references/workflows.md](references/workflows.md).
 4. Load only the files relevant to the request. Do not assume that every
    Project, Resource, or Task belongs in agent context.
 
@@ -40,9 +43,9 @@ not need to belong to an Area. `dokito context` failing there is normal.
    `dokito tasks --summary`. Each answers with the total, the count per status,
    the count per readable Area, and the warnings, so counts never cost the
    whole listing.
-3. Run `dokito projects` or `dokito tasks` only for a selection you will act
-   on. Both list every local item; see "Bounded global listings" in
-   [references/workflows.md](references/workflows.md).
+3. For a selection you will act on, narrow `dokito projects` or `dokito tasks`
+   with `--area` and `--status` rather than reading every item; see "Bounded
+   global listings" in [references/workflows.md](references/workflows.md).
 4. Treat these listings as discovery metadata. They identify each item by Area
    and file identity, omit full Markdown content, and print warnings for skipped
    Areas. `dokito tasks` reads only local Tasks and makes no network calls.
