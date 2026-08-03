@@ -1,4 +1,5 @@
 import { fail } from "../../core/error";
+import { outboundLinks } from "../../core/links";
 import { PROJECT_STATUS } from "../../core/project-model";
 import { projectDocumentPaths, summarizeProject } from "../model";
 import { documentRefs, loadEachArea, loadWorkArea } from "./areas";
@@ -108,11 +109,8 @@ export async function loadProjectView(
   ]);
   const { warnings } = summary;
   const { project, source, workArea, area } = requireProject(input, summary);
-  const [documents, relations] = await Promise.all([
-    snapshot.documents(area),
-    snapshot.relations(area),
-  ]);
-  const links = relations.graph.get(source.relativePath);
+  const documents = await snapshot.documents(area);
+  const linkedPaths = outboundLinks(documents.documents, source);
 
   return {
     view: "project",
@@ -124,7 +122,7 @@ export async function loadProjectView(
     ),
     documents: documentRefs(
       documents.documents,
-      projectDocumentPaths(source, links?.outbound ?? []),
+      projectDocumentPaths(source, linkedPaths),
     ),
     warnings,
   };

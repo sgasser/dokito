@@ -7,7 +7,7 @@ import {
   listAreaFiles,
   readAreaFile,
 } from "../../core/files";
-import { buildLinkGraph, type DocumentLinks } from "../../core/links";
+import { documentLinks } from "../../core/links";
 import {
   type DocumentProblem,
   documentProblemWarning,
@@ -45,11 +45,6 @@ const MAX_DOCUMENT_BYTES = 1024 * 1024;
 export interface ResolvedWebArea {
   root: string;
   manifest: AreaManifest;
-}
-
-export interface DocumentRelations {
-  graph: ReadonlyMap<string, DocumentLinks>;
-  statuses: ReadonlyMap<string, string>;
 }
 
 function documentTitle(content: string, relativePath: string): string {
@@ -326,7 +321,7 @@ export async function loadDocumentsArea(
  * and Task loaders would read again. Related metadata can be derived from it
  * without another filesystem pass.
  */
-function documentStatuses(documents: readonly WebDocument[]) {
+export function documentStatuses(documents: readonly WebDocument[]) {
   const statuses = new Map<string, string>();
   for (const document of documents) {
     const status = frontmatterField(document.content, "status");
@@ -346,28 +341,13 @@ function documentStatuses(documents: readonly WebDocument[]) {
   return statuses;
 }
 
-/** Derived once per Area revision and shared by every detail surface. */
-export function createDocumentRelations(
-  documents: readonly WebDocument[],
-): DocumentRelations {
-  return {
-    graph: buildLinkGraph(documents),
-    statuses: documentStatuses(documents),
-  };
-}
-
 /** Documents the open one links to, plus the ones that link back to it. */
 export function relatedDocuments(
   documents: readonly WebDocument[],
   selected: WebDocument,
   statuses: ReadonlyMap<string, string>,
-  graph: ReadonlyMap<string, DocumentLinks> = buildLinkGraph(documents),
 ): WebRelatedDocument[] {
-  const links = graph.get(selected.relativePath);
-  if (!links) {
-    return [];
-  }
-
+  const links = documentLinks(documents, selected);
   const byPath = new Map(
     documents.map((document) => [document.relativePath, document]),
   );

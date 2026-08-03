@@ -20,8 +20,7 @@ import type {
   TaskDocument,
 } from "../../core/types";
 import {
-  createDocumentRelations,
-  type DocumentRelations,
+  documentStatuses,
   loadDocumentsArea,
   type ResolvedWebArea,
 } from "./areas";
@@ -39,7 +38,7 @@ interface AreaData {
   files: AreaFile[];
   readFile: AreaFileReader;
   documents?: Promise<WebDocumentsArea>;
-  relations?: Promise<DocumentRelations>;
+  statuses?: Promise<ReadonlyMap<string, string>>;
   projects?: Promise<LoadedProjects>;
   tasks?: Promise<LoadedTasks>;
   localTasks?: Promise<LocalTask[]>;
@@ -133,12 +132,13 @@ export class WorkspaceSnapshot {
     });
   }
 
-  relations(area: ResolvedWebArea): Promise<DocumentRelations> {
+  /** The Project and Task status each document declares, for related lists. */
+  statuses(area: ResolvedWebArea): Promise<ReadonlyMap<string, string>> {
     return this.areaData(area).then((data) => {
-      data.relations ??= this.documents(area).then((documents) =>
-        createDocumentRelations(documents.documents),
+      data.statuses ??= this.documents(area).then((documents) =>
+        documentStatuses(documents.documents),
       );
-      return data.relations;
+      return data.statuses;
     });
   }
 

@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   buildLinkGraph,
   createDocumentLookup,
+  documentLinks,
   extractLinkTargets,
   linkCandidates,
+  outboundLinks,
   resolveLink,
   shortestLinkForm,
 } from "../../src/core/links";
@@ -22,28 +24,32 @@ const documents = [
   },
 ];
 
-/** One `overview.md` per topic folder is the shape a bare filename must survive. */
+/**
+ * One `overview.md` per topic folder is the shape a bare filename must survive.
+ * The bodies matter: a bare `overview` is where resolution is hardest, so an
+ * empty corpus would agree with anything.
+ */
 const duplicates = [
-  { relativePath: "context.md", content: "" },
+  { relativePath: "context.md", content: "See [[overview]] and [[queues]]." },
   {
     relativePath: "resources/platform/overview.md",
-    content: "",
+    content: "# Platform\n\nNext to [[queues]], one level from [[context]].",
   },
   {
     relativePath: "resources/platform/queues.md",
-    content: "",
+    content: "# Queues\n\nSee [[overview]] and [[storage/overview]].",
   },
   {
     relativePath: "resources/platform/storage/overview.md",
-    content: "",
+    content: "# Storage\n\nBack to [[queues]].",
   },
   {
     relativePath: "resources/billing/overview.md",
-    content: "",
+    content: "# Billing\n\nSee [[task:01K1ABCXYZ0000000000000000]].",
   },
   {
     relativePath: "tasks/01K1ABCXYZ0000000000000000-migrate.md",
-    content: "",
+    content: "# Migrate\n\nSee [[billing/overview]].",
   },
 ];
 
@@ -355,5 +361,269 @@ describe("Document links", () => {
     ]);
 
     expect(performance.now() - started).toBeLessThan(10_000);
+  }, 60_000);
+});
+
+/**
+ * Regression: every screen reads one document's links, but the Web view built
+ * the whole Area graph to get them — an mdast parse of every body on every
+ * request, which cost seconds on a large Area and blocked the one thread the
+ * server answers from. `documentLinks` parses the open body and only the
+ * bodies that literally name it, so it has to agree with the graph everywhere.
+ */
+describe("One document's links", () => {
+  /** One document per spelling the resolver accepts for the same target. */
+  const area = {
+    context: {
+      relativePath: "context.md",
+      content: [
+        "# Product",
+        "",
+        "See [[Security]] and [notes](resources/my%20notes.md).",
+        "Then [[task:01K1ABCXYZ0000000000000000]] and [[project:launch]].",
+      ].join("\n"),
+    },
+    launch: {
+      relativePath: "projects/launch.md",
+      content: "# Launch\n\n[Rules](security) and [[context]].",
+    },
+    security: {
+      relativePath: "resources/security.md",
+      content:
+        "# Security\n\n| Who | Why |\n| --- | --- |\n| [[Interview - Karan Shah\\|Interview]] | Escaped pipe |",
+    },
+    interview: {
+      relativePath: "resources/Interview - Karan Shah.md",
+      content: "# Interview\n\nWritten up in [notes](resources\\my notes.md).",
+    },
+    notes: {
+      relativePath: "resources/my notes.md",
+      content: "# My notes\n\nNothing links out of here.",
+    },
+    task: {
+      relativePath: "tasks/01K1ABCXYZ0000000000000000-revise-notice.md",
+      content: "# Revise notice\n\nSee [[my notes]].",
+    },
+  };
+  const spellings = Object.values(area);
+
+  test.each([
+    ["spellings", spellings],
+    ["ambiguous filenames", duplicates],
+    ["plain documents", documents],
+  ])("agrees with the Area graph across %s", (_name, corpus) => {
+    const graph = buildLinkGraph(corpus);
+    for (const document of corpus) {
+      const expected = graph.get(document.relativePath) ?? {
+        outbound: [],
+        inbound: [],
+      };
+      expect(documentLinks(corpus, document)).toEqual(expected);
+      expect(outboundLinks(corpus, document)).toEqual(expected.outbound);
+    }
+  });
+
+  test("finds inbound links written in an encoded, escaped or bare form", () => {
+    expect(documentLinks(spellings, area.notes).inbound).toEqual([
+      // Percent-encoded destination.
+      "context.md",
+      // Backslash read as a separator.
+      "resources/Interview - Karan Shah.md",
+      // The filename alone.
+      "tasks/01K1ABCXYZ0000000000000000-revise-notice.md",
+    ]);
+  });
+
+  /**
+   * The prefilter has to be a superset: a body that resolves here but holds no
+   * token of it loses its inbound link silently. Only Markdown decoding inside
+   * a destination does that, so every other form the resolver accepts is
+   * pinned against the graph it has to agree with.
+   */
+  const notes = { relativePath: "resources/my notes.md", content: "" };
+  test.each([
+    ["a dot segment", "[x](resources/./my notes.md)"],
+    ["a fragment", "[x](resources/my notes.md#part)"],
+    ["angle brackets", "[x](<resources/my notes.md>)"],
+    ["a backslash separator", "[x](resources\\my notes.md)"],
+    ["a percent escape", "[x](resources/my%20notes.md)"],
+    ["the filename alone", "See [[my notes]]."],
+  ])("sees an inbound link written with %s", (_name, content) => {
+    const corpus = [{ relativePath: "context.md", content }, notes];
+
+    expect(documentLinks(corpus, notes)).toEqual(
+      buildLinkGraph(corpus).get(notes.relativePath) ?? {
+        outbound: [],
+        inbound: [],
+      },
+    );
+    expect(documentLinks(corpus, notes).inbound).toEqual(["context.md"]);
+  });
+
+  /**
+   * The prescan only narrows; resolution decides. Without these, answering
+   * every candidate with "yes" passes the suite, and the Related list fills
+   * with documents that merely say the name out loud.
+   */
+  test("does not read a prose mention or a fenced path as a link", () => {
+    const corpus = [
+      {
+        relativePath: "context.md",
+        content: [
+          "# Product",
+          "",
+          "The file resources/my notes.md holds the rest.",
+          "",
+          "```",
+          "[not a link](resources/my notes.md)",
+          "```",
+        ].join("\n"),
+      },
+      notes,
+    ];
+
+    expect(documentLinks(corpus, notes)).toEqual({ outbound: [], inbound: [] });
+  });
+
+  test("does not read an ambiguous bare filename as a link", () => {
+    const overview = {
+      relativePath: "resources/platform/overview.md",
+      content: "",
+    };
+    const corpus = [
+      { relativePath: "context.md", content: "See [[overview]]." },
+      overview,
+      { relativePath: "resources/billing/overview.md", content: "" },
+    ];
+
+    expect(documentLinks(corpus, overview)).toEqual(
+      buildLinkGraph(corpus).get(overview.relativePath) ?? {
+        outbound: [],
+        inbound: [],
+      },
+    );
+    expect(documentLinks(corpus, overview).inbound).toEqual([]);
+  });
+
+  /**
+   * Regression: the prescan guessed one encoding, `encodeURIComponent`, but a
+   * destination may escape any character. Nine Area documents are named like
+   * `KW13 (23.-29. Mar).md`, and a link to those has to escape the parentheses
+   * or the `)` ends the destination — which is exactly what the guess left
+   * alone. The last row pins the order: the body has to be decoded before it is
+   * lowercased, or an escape of `Ü` decodes back to `Ü` and misses `übersicht`.
+   */
+  test.each([
+    [
+      "an escaped punctuation character",
+      "[x](resources/my%2Dnotes.md)",
+      "resources/my-notes.md",
+    ],
+    [
+      "an escaped letter",
+      "[x](resources/%6Dy-notes.md)",
+      "resources/my-notes.md",
+    ],
+    [
+      "escaped parentheses",
+      "[x](resources/KW13 %2823.-29. Mar%29.md)",
+      "resources/KW13 (23.-29. Mar).md",
+    ],
+    [
+      "a fully escaped path",
+      "[x](resources/KW13%20%2823.-29.%20Mar%29.md)",
+      "resources/KW13 (23.-29. Mar).md",
+    ],
+    [
+      "a literal ampersand beside an escape",
+      "[x](resources/Q&A%20session.md)",
+      "resources/Q&A session.md",
+    ],
+    [
+      "an escaped non-ASCII letter",
+      "[x](resources/%C3%BCbersicht.md)",
+      "resources/übersicht.md",
+    ],
+    [
+      "an escape that has to be decoded before it is folded",
+      "[x](resources/%C3%9Cbersicht.md)",
+      "resources/übersicht.md",
+    ],
+  ])("sees an inbound link through %s", (_name, content, target) => {
+    const document = { relativePath: target, content: "" };
+    const corpus = [{ relativePath: "context.md", content }, document];
+
+    expect(documentLinks(corpus, document)).toEqual(
+      buildLinkGraph(corpus).get(target) ?? { outbound: [], inbound: [] },
+    );
+    expect(documentLinks(corpus, document).inbound).toEqual(["context.md"]);
+  });
+
+  /**
+   * A document that links to itself must appear in neither of its own lists,
+   * and both lists are path-sorted so the Related panel does not reshuffle
+   * between renders. Reading the corpus in order would satisfy the second by
+   * accident, so the documents here are deliberately out of order.
+   */
+  test("excludes a self-link and sorts both directions", () => {
+    const self = {
+      relativePath: "resources/hub.md",
+      content: "# Hub\n\nSee [[hub]], [[alpha]] and [[zulu]].",
+    };
+    const corpus = [
+      { relativePath: "resources/zulu.md", content: "Up to [[hub]]." },
+      self,
+      { relativePath: "resources/alpha.md", content: "Up to [[hub]]." },
+    ];
+
+    expect(documentLinks(corpus, self)).toEqual({
+      outbound: ["resources/alpha.md", "resources/zulu.md"],
+      inbound: ["resources/alpha.md", "resources/zulu.md"],
+    });
+    expect(outboundLinks(corpus, self)).toEqual([
+      "resources/alpha.md",
+      "resources/zulu.md",
+    ]);
+  });
+
+  test("finds a Task named by its ULID and a Project by its id", () => {
+    expect(documentLinks(spellings, area.task).inbound).toEqual(["context.md"]);
+    expect(documentLinks(spellings, area.launch).inbound).toEqual([
+      "context.md",
+    ]);
+  });
+
+  test("reads a wiki target whose pipe is escaped inside a table", () => {
+    expect(documentLinks(spellings, area.interview).inbound).toEqual([
+      "resources/security.md",
+    ]);
+  });
+
+  /**
+   * The cost this replaced. The budget sits far above one scan of the Area and
+   * far below a parse of it, so it fails on a return to whole-Area parsing
+   * without turning into a benchmark of the machine it runs on.
+   */
+  test("answers for one document without parsing the Area", () => {
+    const filler = Array.from({ length: 200 }, (_, index) => ({
+      relativePath: `resources/filler-${index}.md`,
+      content: `# Filler ${index}\n\n${"Prose that names nothing. ".repeat(100)}`,
+    }));
+    const corpus = [...spellings, ...filler];
+
+    const singleStarted = performance.now();
+    const links = documentLinks(corpus, area.context);
+    const single = performance.now() - singleStarted;
+
+    const graphStarted = performance.now();
+    const graph = buildLinkGraph(corpus);
+    const whole = performance.now() - graphStarted;
+
+    // The empty fallback would fail against the links this document has, so a
+    // graph that lost the entry is a failure rather than a pass.
+    expect(links).toEqual(
+      graph.get("context.md") ?? { outbound: [], inbound: [] },
+    );
+    expect(single).toBeLessThan(whole / 3);
   }, 60_000);
 });

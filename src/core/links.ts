@@ -228,6 +228,20 @@ function key(value: string): string {
 }
 
 /**
+ * The ULID a Task file is addressed by, or undefined for anything else. The
+ * prescan only holds while it derives this exactly as the lookup indexes it,
+ * and a disagreement would drop inbound Task links without a word, so both
+ * read the rule from here.
+ */
+function taskId(relativePath: string): string | undefined {
+  const segments = relativePath.split("/");
+  if (segments[0] !== "tasks" || segments.length !== 2) {
+    return undefined;
+  }
+  return segments[1]?.replace(/\.md$/i, "").split("-", 1)[0] || undefined;
+}
+
+/**
  * Link resolution runs while building the Area graph and while rendering every
  * link in one open document. Build the indexes once so neither caller has to
  * scan the complete document list for every target.
@@ -254,8 +268,8 @@ export function createDocumentLookup<T extends LinkableDocument>(
     for (let index = 0; index < segments.length; index += 1) {
       append(bySuffix, key(segments.slice(index).join("/")), document);
     }
-    const id = segments[1]?.replace(/\.md$/i, "").split("-", 1)[0];
-    if (segments[0] === "tasks" && segments.length === 2 && id) {
+    const id = taskId(document.relativePath);
+    if (id) {
       // Two files sharing a ULID is an invalid Area, and reporting both beats
       // resolving to whichever was read last.
       append(byTaskId, id.toUpperCase(), document);
@@ -378,9 +392,137 @@ export function resolveLink<T extends LinkableDocument>(
 }
 
 /**
+ * The literal spellings a body has to contain to link to this document. Every
+ * target `extractLinkTargets` yields is copied out of the source text, so a
+ * body holding none of these cannot resolve here and never needs parsing.
+ */
+function referenceTokens(document: LinkableDocument): string[] {
+  const tokens = new Set<string>();
+  const segments = document.relativePath.split("/");
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const suffix = segments.slice(index).join("/");
+    tokens.add(key(suffix));
+    tokens.add(key(suffix.replace(/\.md$/i, "")));
+  }
+
+  // A Task is linked by its ULID alone, which no path suffix contains.
+  const id = taskId(document.relativePath);
+  if (id) {
+    tokens.add(key(id));
+  }
+
+  // A file named `.md` would otherwise contribute an empty token, and an empty
+  // token names every document.
+  return [...tokens].filter(Boolean);
+}
+
+const PERCENT_RUN = /(?:%[0-9a-f]{2})+/gi;
+
+/**
+ * A destination may percent-escape any character it likes and
+ * `normalizeTargetPath` decodes all of them, so guessing one spelling is not
+ * enough: `KW13 %2823.-29. Mar%29.md` names a document whose own name holds no
+ * escape at all. Decoding before the comparison covers every spelling at once.
+ */
+function decodePercent(content: string): string {
+  return content.replace(PERCENT_RUN, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      // A literal percent is a valid filename character, as `decodeTarget` says.
+      return run;
+    }
+  });
+}
+
+/**
+ * Whether a body could name this document at all. Cheap and deliberately
+ * generous: a false positive only costs the parse that confirms it, while a
+ * false negative drops an inbound link. Two spellings get past it, neither
+ * seen in a real Area: a destination Markdown itself decodes, so
+ * `[a](my\-notes.md)` and `[a](&#109;y-notes.md)` reach the resolver as
+ * `my-notes.md`; and a path segment that is a lone `Σ`, which `key` folds to
+ * `σ` on its own but to `ς` inside a body.
+ */
+function mentions(content: string, tokens: readonly string[]): boolean {
+  const body = key(content);
+  const forms = content.includes("%")
+    ? [body, key(decodePercent(content))]
+    : [body];
+  return tokens.some((token) => forms.some((form) => form.includes(token)));
+}
+
+function linkedPaths(
+  documents: readonly LinkableDocument[],
+  from: LinkableDocument & { content: string },
+  lookup: DocumentLookup<LinkableDocument>,
+): string[] {
+  const outbound: string[] = [];
+  for (const target of extractLinkTargets(from.content)) {
+    const resolved = resolveLink(from.relativePath, target, documents, lookup);
+    if (!resolved || resolved.relativePath === from.relativePath) {
+      continue;
+    }
+    if (!outbound.includes(resolved.relativePath)) {
+      outbound.push(resolved.relativePath);
+    }
+  }
+  return outbound.sort();
+}
+
+/** Every document one body links to, deduplicated and path-sorted. */
+export function outboundLinks(
+  documents: readonly LinkableDocument[],
+  from: LinkableDocument & { content: string },
+): string[] {
+  return linkedPaths(documents, from, createDocumentLookup(documents));
+}
+
+/**
+ * One document's links, which is all any screen reads. Outbound needs this
+ * body; inbound needs only the bodies that could name it, which a substring
+ * scan narrows without parsing the Area. How much it narrows depends on how
+ * distinctive the name is: `context.md` leaves a common word to match and
+ * saves least, an ordinary title leaves a handful of candidates. Equal to
+ * `buildLinkGraph(documents).get(selected.relativePath)`, and the reason the
+ * whole graph is not built to answer for one document.
+ */
+export function documentLinks(
+  documents: readonly (LinkableDocument & { content: string })[],
+  selected: LinkableDocument & { content: string },
+): DocumentLinks {
+  const lookup = createDocumentLookup(documents);
+  const tokens = referenceTokens(selected);
+  const inbound: string[] = [];
+
+  for (const document of documents) {
+    // Skipping the open document is about not parsing it twice; `linkedPaths`
+    // drops a self-link on its own, so the two lists stay right without this.
+    if (
+      document.relativePath === selected.relativePath ||
+      !mentions(document.content, tokens)
+    ) {
+      continue;
+    }
+    if (
+      linkedPaths(documents, document, lookup).includes(selected.relativePath)
+    ) {
+      inbound.push(document.relativePath);
+    }
+  }
+
+  return {
+    outbound: linkedPaths(documents, selected, lookup),
+    inbound: inbound.sort(),
+  };
+}
+
+/**
  * Outbound and inbound document links for every document in an Area. A
  * document never links to itself, and both directions are path-sorted so the
- * "Related" list is stable between renders.
+ * "Related" list is stable between renders. Screens read one document, so they
+ * use `documentLinks`; this stays as the definition it is measured against.
  */
 export function buildLinkGraph(
   documents: readonly (LinkableDocument & { content: string })[],

@@ -19,10 +19,10 @@ export async function loadResourcesView(
   // Only the Areas on screen are read: the switcher names Areas rather than
   // counting their documents, so the rest have nothing to contribute here.
   const selectedRoot = scope.selectedArea ? scope.scoped[0] : undefined;
-  const [inScope, navigation, relations] = await Promise.all([
+  const [inScope, navigation, statuses] = await Promise.all([
     Promise.all(scope.scoped.map((area) => snapshot.documents(area))),
     snapshot.navigation(),
-    selectedRoot ? snapshot.relations(selectedRoot) : undefined,
+    selectedRoot ? snapshot.statuses(selectedRoot) : undefined,
   ]);
   const selectedArea = scope.selectedArea ? inScope[0] : undefined;
   const listed = inScope.flatMap((area) => explorerDocuments(area.documents));
@@ -55,13 +55,8 @@ export async function loadResourcesView(
   // reader still has to reveal the document it was explicitly asked to open.
   const includeArchived = requestedArchived || selected?.state === "archived";
   const related =
-    selected && selectedArea && relations
-      ? relatedDocuments(
-          selectedArea.documents,
-          selected,
-          relations.statuses,
-          relations.graph,
-        )
+    selected && selectedArea && statuses
+      ? relatedDocuments(selectedArea.documents, selected, statuses)
       : undefined;
 
   return {
