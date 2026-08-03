@@ -6,19 +6,33 @@ Run `dokito context`, then use the printed paths. Read `dokito.yaml` for
 Repository registrations.
 
 A reference you already hold never needs a search: `dokito resolve '<target>'`
-prints its path directly. To find a document you cannot name yet, work outwards
-from the narrowest signal and stop at the level that answers, because the
-search is lexical and unranked and a body match on a common word says nothing
-about what the document is about:
+prints its path directly. To find a document you cannot name yet, use
+`dokito search`. It reads the Area files live, returns at most one hit per
+document, and works the retrieval order for you: the filename first, then the
+title, then a Markdown heading, then the body, so a document named after the
+words outranks prose that merely uses them.
 
 ```bash
-rg --files projects resources tasks | rg -i '<term>'   # identity
-rg -ni '^#{1,6}.*<term>' projects resources tasks      # heading
-rg -ni '<term>' projects resources tasks               # body
+dokito search 'data retention'
+dokito search 'retention' --type resources --limit 5
+dokito search 'retention' --all          # every registered Area
 ```
 
-Bound a broad body search before printing it: pass `--max-count` or count the
-hits first, so a common word cannot fill the answer with prose.
+Each hit is one line: the reason it matched, its Area and Area-relative path,
+the matching line where there is one, the document's name, the status a Project
+or Task declares, and the matching text. A hit its filename earned carries no
+line number and shows what the document opens with. Inside one Area that path
+is ready to open; under `--all`, take the Area root from `dokito areas` first,
+because a hit names its Area rather than a path on this machine.
+
+The result is bounded at `--limit`, 20 by default, and the header counts the
+matches before that bound. When that count is far larger than what you asked
+for, narrow the query or add `--type`; do not raise the limit merely to see
+more of the same word.
+
+`rg --files projects resources tasks | rg -i '<term>'` still lists identities
+inside one collection. Use `rg` for content only where `dokito search` is
+unavailable, and bound it with `--max-count` before printing it.
 
 ## Bounded global listings
 

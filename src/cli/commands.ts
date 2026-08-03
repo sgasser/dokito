@@ -1,6 +1,7 @@
 import packageJson from "../../package.json";
 import { listAreas, registerExistingArea } from "../core/areas";
 import { context } from "../core/context";
+import type { DocumentArea } from "../core/documents";
 import { DokitoError } from "../core/error";
 import { pathExists } from "../core/files";
 import {
@@ -12,6 +13,16 @@ import {
 } from "../core/inventory";
 import { isProjectStatus, PROJECT_STATUS_VALUES } from "../core/project-model";
 import { resolveReference } from "../core/resolve";
+import { resolveScope } from "../core/scope";
+import {
+  type DocumentHit,
+  isSearchType,
+  registeredSearchAreas,
+  SEARCH_TYPE_VALUES,
+  type SearchReason,
+  type SearchType,
+  searchAreaDocuments,
+} from "../core/search";
 import { isTaskStatus, TASK_STATUS_VALUES } from "../core/task-model";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
@@ -28,6 +39,25 @@ import { printJson, success } from "./output";
 
 const VERSION = packageJson.version;
 
+/**
+ * As many hits as a reader scans before narrowing the query, and few enough
+ * that a common word cannot fill the answer. `--limit` raises it on purpose.
+ */
+const SEARCH_LIMIT = 20;
+
+/**
+ * The CLI reads a result whole rather than scrolling it, so what a document is
+ * named outranks what it merely mentions. Status is left out of the reasons
+ * and applied as a tiebreaker, or a running Task would outrank the document
+ * the query actually names.
+ */
+const SEARCH_REASON_ORDER: readonly SearchReason[] = [
+  "filename",
+  "title",
+  "heading",
+  "content",
+];
+
 function usage(): string {
   return `Dokito ${VERSION}
 
@@ -39,6 +69,7 @@ Commands:
   areas
   projects [--area <id>] [--status <status>] [--summary]
   tasks [--area <id>] [--status <status>] [--summary]
+  search <query> [--all] [--type <type>] [--limit <n>] [--cwd <path>]
   context [--raw] [--cwd <path>]
   resolve <reference> [--cwd <path>]
   validate [--links] [--cwd <path>]
@@ -60,6 +91,9 @@ Command options:
   --summary        Return counts by status and Area instead of every item
   --area <id>      Restrict a listing to one readable Area
   --status <s>     Restrict a listing to one Project or Task status
+  --all            Search every registered Area instead of the resolved one
+  --type <t>       Restrict search hits to ${SEARCH_TYPE_VALUES.join(", ")}
+  --limit <n>      Return at most n search hits (default ${SEARCH_LIMIT})
 
 A <reference> is a filename, 'project:<id>', 'task:<ULID>' or 'repo:<id>[/path]'.
 Pass the target inside the Wikilink, without '[[...]]' or '|display text'.
@@ -213,6 +247,89 @@ function summaryHuman(
   ].join("\n");
 }
 
+interface SearchResult {
+  configPath: string;
+  query: string;
+  /** Areas that were read, the way the listings count them. */
+  areaCount: number;
+  /** Every match, so a limited answer is visibly a limited answer. */
+  total: number;
+  limit: number;
+  hits: DocumentHit[];
+  warnings: string[];
+}
+
+function searchHuman(result: SearchResult): string {
+  return [
+    result.total === result.hits.length
+      ? `Matches: ${result.total}`
+      : `Matches: ${result.total} (showing ${result.hits.length})`,
+    ...result.hits.map(
+      (hit) =>
+        `- [${hit.reason}] ${hit.area}/${hit.relativePath}${
+          hit.line > 0 ? `:${hit.line}` : ""
+        }: ${hit.title}${details([
+          // The bracket already carries the reason, so the lifecycle a hit
+          // reached through search states itself the way a listing does.
+          hit.status ? `status ${hit.status}` : undefined,
+          hit.snippet || undefined,
+        ])}`,
+    ),
+  ].join("\n");
+}
+
+/** Typed at the boundary, so a mistyped filter never reaches a file read. */
+function searchQuery(
+  global: GlobalOptions,
+  args: string[],
+): { query: string; type?: SearchType; limit: number } {
+  const query = onePositional(args, "search query").trim();
+  if (query.length === 0) {
+    throw new DokitoError("query_empty", "Search query cannot be empty.");
+  }
+
+  const type = global.values.get("type");
+  if (type !== undefined && !isSearchType(type)) {
+    throw new DokitoError(
+      "invalid_usage",
+      `Unknown search type '${type}'. Use one of: ${SEARCH_TYPE_VALUES.join(", ")}.`,
+    );
+  }
+
+  const limitValue = global.values.get("limit");
+  const limit = limitValue === undefined ? SEARCH_LIMIT : Number(limitValue);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new DokitoError(
+      "invalid_usage",
+      "Search limit must be a whole number of at least 1.",
+    );
+  }
+
+  return { query, ...(type !== undefined ? { type } : {}), limit };
+}
+
+/**
+ * The Area the caller is standing in, or the whole registry when they asked
+ * for it. There is no third option: a search nobody scoped is the listing
+ * problem again.
+ */
+async function searchScope(
+  global: GlobalOptions,
+): Promise<{ areas: DocumentArea[]; warnings: string[] }> {
+  if (global.booleans.has("all")) {
+    await requireNamedConfig(global);
+    return registeredSearchAreas(global.configPath);
+  }
+  const scope = await resolveScope({
+    cwd: global.cwd,
+    configPath: global.configPath,
+  });
+  return {
+    areas: [{ id: scope.area, name: scope.areaName, root: scope.areaRoot }],
+    warnings: scope.warnings,
+  };
+}
+
 function contextHuman(result: Awaited<ReturnType<typeof context>>): string {
   return [
     `Area: ${result.area}  ${result.areaRoot}`,
@@ -341,6 +458,36 @@ export async function runCli(global: GlobalOptions): Promise<void> {
     }
     const result = await listRegisteredTasks(query);
     success(global.json, result, tasksHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "search") {
+    assertOptions(global, ["all", "type", "limit", "cwd"]);
+    const { query, type, limit } = searchQuery(global, args);
+    if (global.booleans.has("all") && global.commandOptions.has("cwd")) {
+      throw new DokitoError(
+        "invalid_usage",
+        "Options --all and --cwd cannot be combined.",
+      );
+    }
+    const scope = await searchScope(global);
+    const found = await searchAreaDocuments({
+      areas: scope.areas,
+      query,
+      ...(type !== undefined ? { type } : {}),
+      reasonOrder: SEARCH_REASON_ORDER,
+    });
+    const result: SearchResult = {
+      configPath: global.configPath,
+      query,
+      areaCount: found.areaCount,
+      total: found.hits.length,
+      limit,
+      hits: found.hits.slice(0, limit),
+      warnings: [...scope.warnings, ...found.warnings],
+    };
+    success(global.json, result, searchHuman(result));
     writeWarnings(global.json, result.warnings);
     return;
   }

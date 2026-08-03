@@ -1,6 +1,10 @@
 import { frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
-import { openingExcerpt, searchDocumentContent } from "../../core/search";
+import {
+  documentSearchType,
+  openingExcerpt,
+  searchDocumentContent,
+} from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
 import { documentLabel } from "../kinds";
@@ -30,17 +34,11 @@ const TYPE_LABELS: Record<WebSearchType, string> = {
   resources: "Resources",
 };
 
-/** The Area file is reference material, so it groups with the Resources. */
-function searchType(document: WebDocument): WebSearchType {
-  if (document.kind === "task") {
-    return "tasks";
-  }
-  return document.kind === "project" ? "projects" : "resources";
-}
-
 /**
  * Active work first, then title matches, then content. The order was always
- * there; stating the reason on the hit is what makes it visible.
+ * there; stating the reason on the hit is what makes it visible. It is this
+ * screen's order over the shared reasons, not the only one: the CLI reads a
+ * result whole and ranks the name before the running Task.
  */
 const REASON_ORDER: readonly WebSearchReason[] = [
   "in progress",
@@ -153,7 +151,7 @@ export async function loadSearchView(
                   path: document.relativePath,
                   title: documentLabel(document),
                   kind: document.kind,
-                  type: searchType(document),
+                  type: documentSearchType(document.kind),
                   meta: hitMeta(document),
                   ...result,
                   modifiedAt: document.modifiedAt,

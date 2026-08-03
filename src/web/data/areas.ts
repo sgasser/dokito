@@ -1,11 +1,10 @@
 import path from "node:path";
+import { loadAreaDocuments } from "../../core/documents";
 import { fail, normalizeError } from "../../core/error";
 import {
   type AreaFile,
   type AreaFileReader,
   ensureRealDirectory,
-  listAreaFiles,
-  readAreaFile,
 } from "../../core/files";
 import { documentLinks } from "../../core/links";
 import {
@@ -14,10 +13,9 @@ import {
   type LoadedProjects,
   loadAreaManifest,
 } from "../../core/manifests";
-import { frontmatterField, headingTitle } from "../../core/markdown";
+import { frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
 import { verifiedRepositoryPath } from "../../core/repositories";
-import { areaState, resourceState } from "../../core/state-model";
 import {
   isTaskStatus,
   taskStatusLabel,
@@ -36,33 +34,9 @@ import type {
   WebRelatedDocument,
 } from "./types";
 
-/**
- * Well above any hand-written note, and small enough that reading every
- * document on every request stays cheap.
- */
-const MAX_DOCUMENT_BYTES = 1024 * 1024;
-
 export interface ResolvedWebArea {
   root: string;
   manifest: AreaManifest;
-}
-
-function documentTitle(content: string, relativePath: string): string {
-  return headingTitle(content) ?? path.basename(relativePath, ".md");
-}
-
-/** Everything outside the Area context, Projects, and Tasks is a Resource. */
-function documentKind(relativePath: string): WebDocumentKind {
-  if (relativePath === "context.md") {
-    return "area";
-  }
-  if (relativePath.startsWith("projects/")) {
-    return "project";
-  }
-  if (relativePath.startsWith("tasks/")) {
-    return "task";
-  }
-  return "resource";
 }
 
 const DOCUMENT_KIND_ORDER: Record<WebDocumentKind, number> = {
@@ -78,44 +52,6 @@ function compareDocuments(a: WebDocument, b: WebDocument): number {
     documentLabel(a).localeCompare(documentLabel(b)) ||
     a.relativePath.localeCompare(b.relativePath)
   );
-}
-
-async function loadWebDocument(input: {
-  root: string;
-  areaId: string;
-  areaName: string;
-  file: AreaFile;
-  readFile: AreaFileReader;
-}): Promise<WebDocument> {
-  // A file Dokito lists but cannot read is one broken document, not a
-  // broken Area: it keeps its place so the reader can say what is wrong. The
-  // same applies to one that is simply too big: every view reads every body,
-  // so a single huge file would otherwise stall the whole server.
-  const oversized = input.file.bytes > MAX_DOCUMENT_BYTES;
-  let content = "";
-  let unreadable = false;
-  if (!oversized) {
-    try {
-      content = await input.readFile(input.root, input.file.path);
-    } catch {
-      unreadable = true;
-    }
-  }
-
-  const kind = documentKind(input.file.path);
-  return {
-    ...(unreadable ? { unreadable: true } : {}),
-    ...(oversized ? { oversized: true } : {}),
-    areaId: input.areaId,
-    areaName: input.areaName,
-    relativePath: input.file.path,
-    title: documentTitle(content, input.file.path),
-    kind,
-    state: kind === "area" ? areaState(content) : resourceState(content),
-    bytes: input.file.bytes,
-    modifiedAt: input.file.modifiedAt,
-    content,
-  };
 }
 
 async function repositoryEntries(
@@ -296,19 +232,11 @@ export async function loadDocumentsArea(
     readFile?: AreaFileReader;
   } = {},
 ): Promise<WebDocumentsArea> {
-  const files = options.files ?? (await listAreaFiles(area.root));
-  const readFile = options.readFile ?? readAreaFile;
-  const documents = await Promise.all(
-    files.map((file) =>
-      loadWebDocument({
-        root: area.root,
-        areaId: area.manifest.id,
-        areaName: area.manifest.name,
-        file,
-        readFile,
-      }),
-    ),
+  const documents = await loadAreaDocuments(
+    { id: area.manifest.id, name: area.manifest.name, root: area.root },
+    options,
   );
+  // The explorer reads by kind and name; the inventory answers by path.
   return {
     id: area.manifest.id,
     name: area.manifest.name,

@@ -75,9 +75,9 @@ agents discover documents from the resolved collection paths, read the
 current files, and make targeted changes directly.
 
 The CLI owns only machine-local registration and registry discovery, global
-read-only Project and Task listings, scope resolution, validation, Task
-ULID generation, and the Web runtime. Before and after a structured file
-change, agents run `dokito validate`. Identities come from manifest keys or
+read-only Project and Task listings, document search, scope resolution,
+validation, Task ULID generation, and the Web runtime. Before and after a
+structured file change, agents run `dokito validate`. Identities come from manifest keys or
 document paths and remain stable unless the file or key is intentionally
 renamed after all typed and Markdown relations have been checked.
 
@@ -443,6 +443,40 @@ The default pass reads only the Area and its manifest, so it reaches the same
 verdict on every machine the Area is shared with. `--links` adds the checks that
 cannot: it resolves each `repo:` target against this machine's checkouts and
 reports which other registered Area holds a name this one does not.
+
+## Search
+
+Search reads the Markdown files as they are on disk. Dokito keeps no index and
+sends nothing anywhere, so a document is findable as soon as it is written and
+unfindable as soon as it is removed.
+
+A query is matched without regard to case, against text whose whitespace has
+been collapsed and whose leading Markdown markup has been dropped, so a match
+reads as the sentence it is. Frontmatter is not searched: it is structured
+metadata with controls of its own. Each document produces at most one hit,
+carrying the Area, the kind, the title, the Area-relative path, the declared
+Project or Task status, the matched line, a snippet windowed around the match,
+and the reason it matched.
+
+The reasons are shared and the order over them is not. A hit is earned by the
+filename, the title, a Markdown heading, or the body, and separately by whether
+the work is under way. `dokito search` ranks filename before title before
+heading before body, and uses a Task in progress or an active Project only to
+break a tie, because a caller who reads the whole result wants the document the
+query names. The Web view ranks running work first, then title, then body,
+because a reader scrolls. Neither order is the model's; each surface states its
+own.
+
+Scope is always explicit. `dokito search` reads the resolved current Area, or
+every readable registered Area with `--all`. The Web view reads every Area
+whatever its Area menu says, because each hit names the Area it came from.
+Every result is bounded: `dokito search` returns at most `--limit` hits,
+defaulting to 20, and reports the number of matches before the limit, so a
+shortened answer cannot be read as the whole one.
+
+An Area that cannot be read, a document the operating system refuses, and a
+document too large to search are reported as warnings and skipped. The rest of
+the Area stays searchable, the same way every other reading command behaves.
 
 ## Local configuration
 

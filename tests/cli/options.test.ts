@@ -98,6 +98,84 @@ describe("The listing options", () => {
   });
 });
 
+/**
+ * Search is the one reading command that resolves an Area by default, so its
+ * options belong to it alone and every one of them is checked before a file is
+ * opened. A filter nobody validated would answer with a plausible empty result.
+ */
+describe("The search options", () => {
+  const search = (args: string[]): Promise<void> =>
+    runCli(parseCli(["--config", "/nonexistent.yaml", ...args]));
+
+  test("are refused by the commands that never search", async () => {
+    for (const option of [["--all"], ["--type", "tasks"], ["--limit", "5"]]) {
+      await expect(search([...option, "projects"])).rejects.toThrow(
+        `Option ${option[0]} is not valid for this command.`,
+      );
+    }
+  });
+
+  test("do not include the listing filters", async () => {
+    for (const option of [
+      ["--summary"],
+      ["--area", "product"],
+      ["--status", "todo"],
+    ]) {
+      await expect(search([...option, "search", "term"])).rejects.toThrow(
+        `Option ${option[0]} is not valid for this command.`,
+      );
+    }
+  });
+
+  test("need exactly one query that names something", async () => {
+    await expect(search(["search"])).rejects.toThrow(
+      "Expected one search query.",
+    );
+    await expect(search(["search", "a", "b"])).rejects.toThrow(
+      "Expected one search query.",
+    );
+    await expect(search(["search", "   "])).rejects.toMatchObject({
+      code: "query_empty",
+    });
+  });
+
+  /** 'resource' is the kind on the hit, so the near miss has to be named. */
+  test("reject a type and a limit the command does not define", async () => {
+    await expect(
+      search(["search", "term", "--type", "resource"]),
+    ).rejects.toThrow(
+      "Unknown search type 'resource'. Use one of: projects, tasks, resources.",
+    );
+    for (const limit of [
+      ["--limit", "0"],
+      ["--limit=-1"],
+      ["--limit", "1.5"],
+      ["--limit", "many"],
+    ]) {
+      await expect(search(["search", "term", ...limit])).rejects.toThrow(
+        "Search limit must be a whole number of at least 1.",
+      );
+    }
+  });
+
+  /** `--cwd` names the Area to search, so `--all` would silently discard it. */
+  test("keep --all and --cwd apart", async () => {
+    await expect(
+      search(["--cwd", "/", "search", "term", "--all"]),
+    ).rejects.toThrow("Options --all and --cwd cannot be combined.");
+    await expect(
+      search(["--cwd", "/", "search", "term"]),
+    ).rejects.toMatchObject({ code: "area_not_resolved" });
+  });
+
+  /** Only `--all` reads the registry, so only `--all` needs the file there. */
+  test("read the named configuration file when asked for every Area", async () => {
+    await expect(search(["search", "term", "--all"])).rejects.toMatchObject({
+      code: "config_not_found",
+    });
+  });
+});
+
 /** Git is the second of two ways in, so its failure named the wrong subject. */
 describe("Resolving no Area", () => {
   test("names Areas rather than Git, and where to look", async () => {

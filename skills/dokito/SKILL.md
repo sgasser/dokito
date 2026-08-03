@@ -1,6 +1,6 @@
 ---
 name: dokito
-description: Work with Dokito Areas and connected Repositories by discovering global Projects and Tasks, resolving scope, reading and editing canonical Markdown and YAML files, and validating every structured change. Use when listing work across registered Areas, creating or registering an Area, working in an Area or connected code repository, loading scoped knowledge, selecting relations, or when the user asks to use Dokito.
+description: Work with Dokito Areas and connected Repositories by discovering global Projects and Tasks, searching Area documents by name and content, resolving scope, reading and editing canonical Markdown and YAML files, and validating every structured change. Use when listing work across registered Areas, finding a document you cannot name yet, creating or registering an Area, working in an Area or connected code repository, loading scoped knowledge, selecting relations, or when the user asks to use Dokito.
 ---
 
 # Dokito
@@ -8,19 +8,17 @@ description: Work with Dokito Areas and connected Repositories by discovering gl
 Dokito files are the complete model interface. Read and edit `dokito.yaml`,
 `context.md`, Projects, Resources, and Tasks directly. Use the CLI only for
 machine-local registration and registry discovery, global read-only Project
-and Task listings, scope resolution, ULID generation, validation, and the
-Web runtime.
+and Task listings, document search, scope resolution, ULID generation,
+validation, and the Web runtime.
 
 ## Start work
 
 1. Run `dokito context`.
 2. Read the exact `context.md` printed after the summary. Treat the printed
    Area root and collection paths as authoritative local paths.
-3. Read `dokito.yaml` directly from the Area root. Find documents inside the
-   printed collection paths in that order: filename, then heading, then body.
-   Search is lexical and unranked, so a broad body search answers with prose
-   that merely uses the word. See "Discover and read" in
-   [references/workflows.md](references/workflows.md).
+3. Read `dokito.yaml` directly from the Area root. Find a document you cannot
+   name yet with `dokito search '<query>'` rather than a shell search tool. See
+   "Discover and read" in [references/workflows.md](references/workflows.md).
 4. Load only the files relevant to the request. Do not assume that every
    Project, Resource, or Task belongs in agent context.
 
@@ -53,9 +51,10 @@ not need to belong to an Area. `dokito context` failing there is normal.
    reading or editing a selected item, take its Area root from `dokito areas`,
    run `dokito --cwd <areaRoot> context`, and locate the shown file identity
    inside the printed collection path.
-6. For broader cross-Area work beyond Project or Task metadata, iterate only
-   available registry entries and discover files inside each returned
-   collection path.
+6. For broader cross-Area work beyond Project or Task metadata, run
+   `dokito search '<query>' --all`, which needs no resolved directory, or
+   iterate only available registry entries and discover files inside each
+   returned collection path.
 
 Do not scan an arbitrary parent directory to infer registration. Do not link a
 generic agent workspace such as an OpenClaw workspace merely to make context

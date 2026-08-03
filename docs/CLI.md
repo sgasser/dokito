@@ -3,8 +3,8 @@
 Dokito's Markdown and YAML files are the model interface. The CLI does not
 provide CRUD commands for Areas, Repositories, Projects, Resources, or
 Tasks. It owns machine-local setup and Area-registry discovery, global
-read-only Project and Task listings, scope resolution, validation, Task ID
-generation, and the local Web runtime.
+read-only Project and Task listings, document search, scope resolution,
+validation, Task ID generation, and the local Web runtime.
 
 Run `dokito --help` to inspect the commands available in the installed binary.
 
@@ -22,9 +22,10 @@ dokito [--json] [--config <path>] <command>
 | `--help`, `-h` | Print command help |
 
 `--cwd <path>` resolves the Area and Repository from another directory. Only
-`register`, `context`, `resolve`, and `validate` work from a resolved Area, so
-only they accept it. No other command resolves one, so they reject `--cwd`
-rather than accepting it and ignoring it.
+`register`, `context`, `resolve`, `validate`, and `search` work from a resolved
+Area, so only they accept it. No other command resolves one, so they reject
+`--cwd` rather than accepting it and ignoring it. `search --all` resolves no
+Area either and rejects `--cwd` alongside it for the same reason.
 
 The configuration path comes from `--config`, `DOKITO_CONFIG_PATH`,
 `$XDG_CONFIG_HOME/dokito/config.yaml`, or `~/.config/dokito/config.yaml`, in
@@ -32,9 +33,9 @@ that order. It contains absolute Area paths and Area-relative Repository paths
 for this machine and must not be committed.
 
 A path named through `--config` or `DOKITO_CONFIG_PATH` must exist before
-`areas`, `projects`, `tasks`, and `resolve` read it; otherwise a mistyped path
-would answer with an empty registry instead of `config_not_found`. `register`
-creates the file, so it accepts a path that is not there yet.
+`areas`, `projects`, `tasks`, `resolve`, and `search --all` read it; otherwise a
+mistyped path would answer with an empty registry instead of `config_not_found`.
+`register` creates the file, so it accepts a path that is not there yet.
 
 ```yaml
 areas:
@@ -207,6 +208,75 @@ warnings are reported:
   "warnings": []
 }
 ```
+
+## `dokito search`
+
+```bash
+dokito search <query> [--all] [--type <type>] [--limit <n>] [--cwd <path>]
+```
+
+Finds a document by what it is called and by what it says, reading the Markdown
+files directly. There is no index, so a document is findable as soon as it is
+written. The query is matched without regard to case and across collapsed
+whitespace, and each document produces at most one hit.
+
+Search runs in the resolved current Area. `--all` searches every readable
+registered Area instead and needs no resolved directory, which is what makes it
+usable from an agent workspace. Human output is one line per hit:
+
+```text
+Matches: 12 (showing 3)
+- [filename] product/tasks/01K1ABD…-revise-privacy-notice.md: Revise the privacy notice  status todo  Explain which customer data the Web app sends.
+```
+
+Hits are ranked by why they matched: the filename first, then the title, then a
+Markdown heading, then the body. A Task in progress and an active Project come
+first among hits that matched for the same reason. Area and path decide the
+rest, so the same Areas answer the same query the same way on every machine.
+A hit its name earned carries the document's opening line and `line` 0; there is
+no single line to send a reader to.
+
+`--type` keeps only `projects`, `tasks`, or `resources`. The Area's `context.md`
+is reference material and counts as a Resource, while `kind` on the hit stays
+exact. `--limit` bounds the output and defaults to 20.
+
+With `--json`, `data` contains the configuration path, the query, the number of
+Areas read, the number of matches before the limit, the limit, `hits`, and
+warnings:
+
+```json
+{
+  "configPath": "/Users/example/.config/dokito/config.yaml",
+  "query": "privacy",
+  "areaCount": 2,
+  "total": 12,
+  "limit": 20,
+  "hits": [
+    {
+      "area": "product",
+      "kind": "task",
+      "title": "Revise the privacy notice",
+      "relativePath": "tasks/01K1ABDXYZ0000000000000000-revise-privacy-notice.md",
+      "status": "todo",
+      "line": 0,
+      "snippet": "Explain which customer data the Web app sends to the API.",
+      "reason": "filename"
+    }
+  ],
+  "warnings": []
+}
+```
+
+`total` counts every match, so an answer the limit cut short says so instead of
+reading as the whole result. `status` is the lifecycle a Project or Task
+declares; other documents have none, and the line then omits it. An Area that
+cannot be read is reported in `warnings`, skipped, and left out of `areaCount`,
+the way the listings count it. A document that is unreadable or too large to
+search is reported the same way, and the rest of its Area stays searchable.
+
+An empty query fails with `query_empty`, and an unknown `--type` or a `--limit`
+that is not a whole number of at least 1 fails with `invalid_usage`, all before
+any file is opened.
 
 ## `dokito context`
 
