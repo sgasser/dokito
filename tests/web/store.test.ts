@@ -59,6 +59,10 @@ describe("WorkspaceStore", () => {
     expect(await first.relations(firstArea)).toBe(firstRelations);
     expect(await first.projects(firstArea)).toBe(firstProjects);
     expect(await first.tasks(firstArea)).toBe(firstTasks);
+    expect(firstTasks.every((task) => !("content" in task))).toBeTrue();
+    expect(
+      (await first.task(firstArea, firstTasks[0]?.id ?? ""))?.content,
+    ).toContain("Use a staged launch once every surface reports ready.");
     expect(inventories).toBe(1);
 
     const firstProject = firstProjects[0];

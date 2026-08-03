@@ -216,6 +216,9 @@ describe("The Focus route", () => {
     expect(html).toContain('data-focus-view=""');
     expect(html).toContain("Dokito — Focus");
     expect(html).toContain("Coordinate the product launch");
+    expect(html).not.toContain(
+      "Use a staged launch once every surface reports ready.",
+    );
     expect(html).toContain("Active Projects");
     // The paused Area is out of scope until the filter asks for it.
     expect(html).not.toContain("Rewrite the opening of the second essay");

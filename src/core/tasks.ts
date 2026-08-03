@@ -76,7 +76,8 @@ function taskMatchesRepository(
     : false;
 }
 
-function toLocalTask(task: TaskDocument): LocalTask {
+/** Drop the Markdown body when a Task enters a compact list surface. */
+export function toLocalTask(task: TaskDocument): LocalTask {
   return {
     id: task.id,
     status: task.status,

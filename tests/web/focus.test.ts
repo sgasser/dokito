@@ -1,15 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type { ProjectDocument, TaskDocument } from "../../src/core/types";
+import type { LocalTask, ProjectDocument } from "../../src/core/types";
 import { type FocusArea, selectFocus } from "../../src/web/focus";
 
 const NOW = new Date("2026-07-28T12:00:00Z");
 
-function task(input: Partial<TaskDocument> & { id: string }): TaskDocument {
+function task(input: Partial<LocalTask> & { id: string }): LocalTask {
   return {
     status: "todo",
     title: input.id,
     relativePath: `tasks/${input.id}.md`,
-    content: "",
     ...input,
   };
 }

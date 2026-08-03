@@ -24,7 +24,7 @@ import {
   taskStatusMatches,
 } from "../../core/task-model";
 import { listAreaTasks } from "../../core/tasks";
-import type { AreaManifest, LocalConfig, TaskDocument } from "../../core/types";
+import type { AreaManifest, LocalConfig, LocalTask } from "../../core/types";
 import { ownValue } from "../../core/yaml";
 import { documentLabel } from "../kinds";
 import { buildWebWorkItems } from "../work-items";
@@ -262,18 +262,19 @@ export async function loadWorkArea(input: {
    * it skipped would never reach `recordedProblems` and never be reported.
    */
   projects: LoadedProjects;
-  localTasks?: TaskDocument[];
+  localTasks?: LocalTask[];
 }) {
   const { root, manifest } = input.area;
   const projects = input.projects;
   const repositories = await repositoryEntries(input.config, root, manifest);
-  const taskList = await listAreaTasks({
-    areaRoot: root,
-    areaManifest: manifest,
-    projects,
-    ...(input.localTasks ? { localTasks: input.localTasks } : {}),
-    status: "all",
-  });
+  const taskList = input.localTasks
+    ? { localTasks: input.localTasks, warnings: [] }
+    : await listAreaTasks({
+        areaRoot: root,
+        areaManifest: manifest,
+        projects,
+        status: "all",
+      });
   const workItems = await buildWebWorkItems({
     areaId: manifest.id,
     areaName: manifest.name,
