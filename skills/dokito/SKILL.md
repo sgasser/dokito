@@ -72,8 +72,9 @@ read]]`.
 
 Never write a machine path such as `/Users/...` or `~/...` into an Area. It is
 wrong on every other machine and defeats sharing the Area. Reference the
-Repository instead, and run `dokito resolve <reference> --json` when a real
-local path is needed for the current step.
+Repository instead, and run `dokito resolve <target> --json` when a real local
+path is needed for the current step. The target is what stands inside the
+brackets, without `[[...]]` and without `|display text`.
 
 Link only within the current Area. When something belongs to another Area, say
 so in prose; `dokito resolve` finds it across every registered Area.
@@ -88,6 +89,10 @@ so in prose; `dokito resolve` finds it across every registered Area.
   [references/workflows.md](references/workflows.md).
 - For direct edits, concurrent changes, deletion, Git, and completion checks,
   read [references/safety.md](references/safety.md).
+
+Read each reference file you select to the end, one at a time. After truncated
+output, continue from the last confirmed line instead of treating what you saw
+as the whole rule.
 
 ## Create an Area
 
@@ -111,7 +116,9 @@ Create an Area only when the user asks.
 
 ## Structured changes
 
-Run `dokito validate --json` before a structured write to record the baseline.
+Immediately before a structured write, resolve the scope again with
+`dokito context --json` and record the baseline with `dokito validate --json`.
+Context from an earlier or interrupted step can be stale.
 Read the target and its typed relation dependencies immediately before editing.
 Use a context-aware patch and preserve unrelated frontmatter, prose, links,
 lists, and checkboxes.
