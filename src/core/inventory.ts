@@ -7,7 +7,12 @@ import {
   loadProjects,
   loadTasks,
 } from "./manifests";
-import { compareTaskOrder } from "./task-model";
+import { PROJECT_STATUS_VALUES, type ProjectStatus } from "./project-model";
+import {
+  compareTaskOrder,
+  TASK_STATUS_VALUES,
+  type TaskStatus,
+} from "./task-model";
 import type { ProjectDocument, TaskDocument } from "./types";
 
 interface AreaIdentity {
@@ -18,6 +23,16 @@ interface AreaIdentity {
 
 type ListedProject = AreaIdentity & Omit<ProjectDocument, "content">;
 type ListedTask = AreaIdentity & Omit<TaskDocument, "content">;
+
+/** Counts an overview needs, so a caller never reads every item for them. */
+export interface InventorySummary<Status extends string> {
+  configPath: string;
+  areaCount: number;
+  total: number;
+  byStatus: Record<Status, number>;
+  byArea: Record<string, number>;
+  warnings: string[];
+}
 
 const PROJECT_STATUS_ORDER: Record<ProjectDocument["status"], number> = {
   active: 0,
@@ -57,6 +72,7 @@ async function readRegisteredItems<T>(
         const { items, problems } = await read(id, area);
         return {
           ok: true as const,
+          id,
           items,
           warnings: problems.map((problem) =>
             documentProblemWarning(id, problem),
@@ -65,6 +81,7 @@ async function readRegisteredItems<T>(
       } catch (error) {
         return {
           ok: false as const,
+          id,
           warnings: [
             `Skipped Area '${id}' while reading ${collection}: ${
               normalizeError(error).message
@@ -77,12 +94,41 @@ async function readRegisteredItems<T>(
 
   return {
     configPath,
-    areaCount: results.filter((result) => result.ok).length,
+    /** Only Areas that were read at all, so a skipped one stays visible. */
+    areaIds: results.flatMap((result) => (result.ok ? [result.id] : [])),
     items: results.flatMap((result) => (result.ok ? result.items : [])),
     warnings: [
       ...registered.warnings,
       ...results.flatMap((result) => result.warnings),
     ],
+  };
+}
+
+function summarize<Status extends string>(
+  loaded: {
+    configPath: string;
+    areaIds: string[];
+    items: Array<{ area: string; status: Status }>;
+    warnings: string[];
+  },
+  statuses: readonly Status[],
+): InventorySummary<Status> {
+  const byStatus = Object.fromEntries(
+    statuses.map((status) => [status, 0]),
+  ) as Record<Status, number>;
+  const byArea = Object.fromEntries(loaded.areaIds.map((id) => [id, 0]));
+  for (const item of loaded.items) {
+    byStatus[item.status] += 1;
+    byArea[item.area] = (byArea[item.area] ?? 0) + 1;
+  }
+
+  return {
+    configPath: loaded.configPath,
+    areaCount: loaded.areaIds.length,
+    total: loaded.items.length,
+    byStatus,
+    byArea,
+    warnings: loaded.warnings,
   };
 }
 
@@ -105,61 +151,70 @@ function compareTasks(a: ListedTask, b: ListedTask): number {
   return order !== 0 ? order : a.area.localeCompare(b.area);
 }
 
+function readProjects(configPath: string) {
+  return readRegisteredItems(configPath, "Projects", async (id, area) => {
+    const repositories = new Set(Object.keys(area.manifest.repositories));
+    const { projects, problems } = await loadProjects(area.root, repositories);
+    return {
+      items: projects.map((project) => ({
+        ...identity(id, area),
+        ...omitContent(project),
+      })),
+      problems,
+    };
+  });
+}
+
 export async function listRegisteredProjects(input: { configPath: string }) {
-  const loaded = await readRegisteredItems(
-    input.configPath,
-    "Projects",
-    async (id, area) => {
-      const repositories = new Set(Object.keys(area.manifest.repositories));
-      const { projects, problems } = await loadProjects(
-        area.root,
-        repositories,
-      );
-      return {
-        items: projects.map((project) => ({
-          ...identity(id, area),
-          ...omitContent(project),
-        })),
-        problems,
-      };
-    },
-  );
+  const loaded = await readProjects(input.configPath);
 
   return {
     configPath: loaded.configPath,
-    areaCount: loaded.areaCount,
+    areaCount: loaded.areaIds.length,
     projects: loaded.items.sort(compareProjects),
     warnings: loaded.warnings,
   };
 }
 
+export async function summarizeRegisteredProjects(input: {
+  configPath: string;
+}): Promise<InventorySummary<ProjectStatus>> {
+  return summarize(await readProjects(input.configPath), PROJECT_STATUS_VALUES);
+}
+
+function readTasks(configPath: string) {
+  return readRegisteredItems(configPath, "Tasks", async (id, area) => {
+    const repositories = new Set(Object.keys(area.manifest.repositories));
+    const projects = await loadProjects(area.root, repositories);
+    const { tasks, problems } = await loadTasks(
+      area.root,
+      repositories,
+      undefined,
+      { projects },
+    );
+    return {
+      items: tasks.map((task) => ({
+        ...identity(id, area),
+        ...omitContent(task),
+      })),
+      problems: [...projects.problems, ...problems],
+    };
+  });
+}
+
 export async function listRegisteredTasks(input: { configPath: string }) {
-  const loaded = await readRegisteredItems(
-    input.configPath,
-    "Tasks",
-    async (id, area) => {
-      const repositories = new Set(Object.keys(area.manifest.repositories));
-      const projects = await loadProjects(area.root, repositories);
-      const { tasks, problems } = await loadTasks(
-        area.root,
-        repositories,
-        undefined,
-        { projects },
-      );
-      return {
-        items: tasks.map((task) => ({
-          ...identity(id, area),
-          ...omitContent(task),
-        })),
-        problems: [...projects.problems, ...problems],
-      };
-    },
-  );
+  const loaded = await readTasks(input.configPath);
 
   return {
     configPath: loaded.configPath,
-    areaCount: loaded.areaCount,
+    areaCount: loaded.areaIds.length,
     tasks: loaded.items.sort(compareTasks),
     warnings: loaded.warnings,
   };
+}
+
+export async function summarizeRegisteredTasks(input: {
+  configPath: string;
+}): Promise<InventorySummary<TaskStatus>> {
+  return summarize(await readTasks(input.configPath), TASK_STATUS_VALUES);
 }

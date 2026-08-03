@@ -3,7 +3,13 @@ import { listAreas, registerExistingArea } from "../core/areas";
 import { context } from "../core/context";
 import { DokitoError } from "../core/error";
 import { pathExists } from "../core/files";
-import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
+import {
+  type InventorySummary,
+  listRegisteredProjects,
+  listRegisteredTasks,
+  summarizeRegisteredProjects,
+  summarizeRegisteredTasks,
+} from "../core/inventory";
 import { resolveReference } from "../core/resolve";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
@@ -29,8 +35,8 @@ Usage:
 Commands:
   register <area-path> [--cwd <path>]
   areas
-  projects
-  tasks
+  projects [--summary]
+  tasks [--summary]
   context [--raw] [--cwd <path>]
   resolve <reference> [--cwd <path>]
   validate [--links] [--cwd <path>]
@@ -49,6 +55,7 @@ Global options:
 Command options:
   --cwd <path>     Resolve the Area and Repository from another directory
   --links          Resolve every link and Repository checkout
+  --summary        Return counts by status and Area instead of every item
 
 A <reference> is a filename, 'project:<id>', 'task:<ULID>' or 'repo:<id>[/path]'.
 Pass the target inside the Wikilink, without '[[...]]' or '|display text'.
@@ -162,6 +169,24 @@ function tasksHuman(
   ].join("\n");
 }
 
+function counts(values: Record<string, number>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `${key} ${value}`)
+    .join(", ");
+}
+
+function summaryHuman(
+  collection: "Projects" | "Tasks",
+  result: InventorySummary<string>,
+): string {
+  const areas = counts(result.byArea);
+  return [
+    inventoryHeader(collection, result.total, result.areaCount),
+    `Status: ${counts(result.byStatus)}`,
+    ...(areas === "" ? [] : [`Areas: ${areas}`]),
+  ].join("\n");
+}
+
 function contextHuman(result: Awaited<ReturnType<typeof context>>): string {
   return [
     `Area: ${result.area}  ${result.areaRoot}`,
@@ -247,11 +272,19 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   }
 
   if (command === "projects") {
-    assertOptions(global, []);
+    assertOptions(global, ["summary"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "projects accepts no arguments.");
     }
     await requireNamedConfig(global);
+    if (global.booleans.has("summary")) {
+      const summary = await summarizeRegisteredProjects({
+        configPath: global.configPath,
+      });
+      success(global.json, summary, summaryHuman("Projects", summary));
+      writeWarnings(global.json, summary.warnings);
+      return;
+    }
     const result = await listRegisteredProjects({
       configPath: global.configPath,
     });
@@ -261,11 +294,19 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   }
 
   if (command === "tasks") {
-    assertOptions(global, []);
+    assertOptions(global, ["summary"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
     }
     await requireNamedConfig(global);
+    if (global.booleans.has("summary")) {
+      const summary = await summarizeRegisteredTasks({
+        configPath: global.configPath,
+      });
+      success(global.json, summary, summaryHuman("Tasks", summary));
+      writeWarnings(global.json, summary.warnings);
+      return;
+    }
     const result = await listRegisteredTasks({
       configPath: global.configPath,
     });

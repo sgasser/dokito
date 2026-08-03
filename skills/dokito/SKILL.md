@@ -36,16 +36,21 @@ not need to belong to an Area. `dokito context` failing there is normal.
 
 1. Run `dokito areas` when the request needs the machine-local registry. Use
    only entries not marked `unavailable`.
-2. For a cross-Area work overview, run `dokito projects` or `dokito tasks`.
-   Both list every local item.
-3. Treat these listings as discovery metadata. They identify each item by Area
+2. For a cross-Area overview, run `dokito projects --summary` or
+   `dokito tasks --summary`. Each answers with the total, the count per status,
+   the count per readable Area, and the warnings, so counts never cost the
+   whole listing.
+3. Run `dokito projects` or `dokito tasks` only for a selection you will act
+   on. Both list every local item; see "Bounded global listings" in
+   [references/workflows.md](references/workflows.md).
+4. Treat these listings as discovery metadata. They identify each item by Area
    and file identity, omit full Markdown content, and print warnings for skipped
    Areas. `dokito tasks` reads only local Tasks and makes no network calls.
-4. If the user only asked for an overview, answer from the global listing.
-   Before reading or editing a selected item, take its Area root from
-   `dokito areas`, run `dokito --cwd <areaRoot> context`, and locate the shown
-   file identity inside the printed collection path.
-5. For broader cross-Area work beyond Project or Task metadata, iterate only
+5. If the user only asked for an overview, answer from the summary. Before
+   reading or editing a selected item, take its Area root from `dokito areas`,
+   run `dokito --cwd <areaRoot> context`, and locate the shown file identity
+   inside the printed collection path.
+6. For broader cross-Area work beyond Project or Task metadata, iterate only
    available registry entries and discover files inside each returned
    collection path.
 
@@ -114,9 +119,11 @@ Create an Area only when the user asks.
 
 ## Structured changes
 
-Immediately before a structured write, resolve the scope again with
-`dokito context` and record the baseline with `dokito validate`.
-Context from an earlier or interrupted step can be stale.
+A bounded unit is one Area and one goal. Immediately before its first write,
+resolve the scope again with `dokito context` and record the baseline with
+`dokito validate`. Repeat that preflight after an Area switch, an interruption,
+or whenever the resolved context can be stale. Consecutive patches inside one
+uninterrupted unit do not repeat it.
 Read the target and its typed relation dependencies immediately before editing.
 Use a context-aware patch and preserve unrelated frontmatter, prose, links,
 lists, and checkboxes.

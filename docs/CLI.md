@@ -136,8 +136,8 @@ Unavailable or mismatched registrations remain visible with
 ## `dokito projects` and `dokito tasks`
 
 ```bash
-dokito projects
-dokito tasks
+dokito projects [--summary]
+dokito tasks [--summary]
 ```
 
 These commands list every Project or local Markdown Task from every readable
@@ -178,6 +178,23 @@ The complete Markdown `content` is omitted. Three cases produce a warning:
   in that Area is still listed and `areaCount` counts the Area as read;
 - a Task whose Project cannot be resolved is listed, with a warning that its
   reference is unresolved.
+
+`--summary` replaces the items with their counts, so an overview costs a few
+lines instead of the whole registry. `byStatus` names every status of the model
+in its canonical order, including the ones nothing uses, and `byArea` names
+every Area that was read, including the ones holding nothing. The same
+warnings are reported:
+
+```json
+{
+  "configPath": "/Users/example/.config/dokito/config.yaml",
+  "areaCount": 2,
+  "total": 84,
+  "byStatus": {"planned": 21, "active": 21, "done": 21, "cancelled": 21},
+  "byArea": {"product": 44, "writing": 40},
+  "warnings": []
+}
+```
 
 ## `dokito context`
 

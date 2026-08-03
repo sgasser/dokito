@@ -484,6 +484,10 @@ registered Area, attach Area identity and paths to each result, omit full
 Markdown content, and list every local item. Invalid or unavailable Areas do
 not hide readable Areas and produce warnings.
 
+`--summary` returns the same reading as counts instead of items: the total, one
+entry per status of the model, one entry per Area that was read, and the same
+warnings. Its size does not grow with the registry.
+
 ## Local Web view
 
 Dokito Web is a local, read-only interface:

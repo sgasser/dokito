@@ -5,6 +5,8 @@ import { registerArea } from "../../src/core/config";
 import {
   listRegisteredProjects,
   listRegisteredTasks,
+  summarizeRegisteredProjects,
+  summarizeRegisteredTasks,
 } from "../../src/core/inventory";
 import {
   createTestWorkspace,
@@ -89,6 +91,44 @@ describe("Global work inventory", () => {
     expect(tasks.tasks[0]).not.toHaveProperty("content");
   });
 
+  /**
+   * The counts are what an overview asks for, so they have to be answerable
+   * without emitting every item. Statuses nothing uses stay in the reading, or
+   * a caller cannot tell an empty status from a renamed one.
+   */
+  test("counts Projects and Tasks by status and Area", async () => {
+    const fixture = await setup();
+
+    await expect(
+      summarizeRegisteredProjects({ configPath: fixture.configPath }),
+    ).resolves.toEqual({
+      configPath: fixture.configPath,
+      areaCount: 2,
+      total: 2,
+      byStatus: { planned: 0, active: 1, done: 1, cancelled: 0 },
+      byArea: { product: 1, personal: 1 },
+      warnings: [],
+    });
+
+    await expect(
+      summarizeRegisteredTasks({ configPath: fixture.configPath }),
+    ).resolves.toEqual({
+      configPath: fixture.configPath,
+      areaCount: 2,
+      total: 4,
+      byStatus: {
+        todo: 1,
+        in_progress: 2,
+        waiting: 0,
+        someday: 0,
+        done: 1,
+        cancelled: 0,
+      },
+      byArea: { product: 2, personal: 2 },
+      warnings: [],
+    });
+  });
+
   test("keeps readable Areas when other registrations fail", async () => {
     const fixture = await setup();
     const brokenRoot = path.join(fixture.root, "broken-area");
@@ -126,6 +166,15 @@ describe("Global work inventory", () => {
     expect(result.warnings.join("\n")).toContain(
       "Skipped projects/invalid.md in Area 'broken'",
     );
+
+    // The counts read the same registry: 'broken' contributes a zero it was
+    // read for, 'missing' contributes nothing because it was never read.
+    const summary = await summarizeRegisteredProjects({
+      configPath: fixture.configPath,
+    });
+    expect(summary.total).toBe(2);
+    expect(summary.byArea).toEqual({ product: 1, personal: 1, broken: 0 });
+    expect(summary.warnings).toEqual(result.warnings);
   });
 
   test("works through the CLI from unscoped and empty workspaces", async () => {
@@ -180,5 +229,45 @@ describe("Global work inventory", () => {
       projects: [],
       warnings: [],
     });
+  });
+
+  test("answers an overview through --summary without the items", async () => {
+    const fixture = await setup();
+    const spawn = (args: string[]) =>
+      Bun.spawn(
+        ["bun", "run", dokitoCli, "--config", fixture.configPath, ...args],
+        {
+          cwd: fixture.root,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+    const jsonProcess = spawn(["--json", "projects", "--summary"]);
+    const humanProcess = spawn(["tasks", "--summary"]);
+    const [jsonExit, jsonOutput, humanExit, humanOutput] = await Promise.all([
+      jsonProcess.exited,
+      new Response(jsonProcess.stdout).text(),
+      humanProcess.exited,
+      new Response(humanProcess.stdout).text(),
+    ]);
+
+    expect(jsonExit).toBe(0);
+    const parsed = JSON.parse(jsonOutput);
+    expect(parsed.data).toMatchObject({
+      areaCount: 2,
+      total: 2,
+      byStatus: { planned: 0, active: 1, done: 1, cancelled: 0 },
+      byArea: { product: 1, personal: 1 },
+      warnings: [],
+    });
+    expect(parsed.data).not.toHaveProperty("projects");
+
+    expect(humanExit).toBe(0);
+    expect(humanOutput).toContain("Tasks: 4 across 2 Areas");
+    expect(humanOutput).toContain(
+      "Status: todo 1, in_progress 2, waiting 0, someday 0, done 1, cancelled 0",
+    );
+    // Areas keep the registry's stable ID order, so the line is reproducible.
+    expect(humanOutput).toContain("Areas: personal 2, product 2");
   });
 });

@@ -32,6 +32,31 @@ describe("The --cwd option", () => {
   );
 });
 
+/** Only the two registry listings count anything, so only they take the flag. */
+describe("The --summary option", () => {
+  test.each(["areas", "context", "validate", "id", "web"])(
+    "is refused by %s",
+    async (command) => {
+      await expect(
+        runCli(
+          parseCli(["--config", "/nonexistent.yaml", "--summary", command]),
+        ),
+      ).rejects.toThrow("Option --summary is not valid for this command.");
+    },
+  );
+
+  test.each(["projects", "tasks"])(
+    "reaches the registry through %s",
+    async (command) => {
+      await expect(
+        runCli(
+          parseCli(["--config", "/nonexistent.yaml", "--summary", command]),
+        ),
+      ).rejects.toMatchObject({ code: "config_not_found" });
+    },
+  );
+});
+
 /** Git is the second of two ways in, so its failure named the wrong subject. */
 describe("Resolving no Area", () => {
   test("names Areas rather than Git, and where to look", async () => {

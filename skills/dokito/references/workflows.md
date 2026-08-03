@@ -5,6 +5,17 @@
 Run `dokito context`, then use the printed paths. Read `dokito.yaml` for
 Repository registrations. Search only inside the printed collection paths.
 
+## Bounded global listings
+
+`dokito projects --summary` and `dokito tasks --summary` answer a global
+overview with the total, the count per status, the count per readable Area, and
+the warnings the listing would report. Their output stays a few lines whatever
+the registry holds, so use them for counts, totals, and a compact picture.
+
+Without `--summary`, both commands return every item of every registered Area.
+Reach for that only for a selection you will act on, and never repeat a listing
+merely because an unnarrowed first attempt was truncated.
+
 ## Create
 
 1. Validate the Area and read the owning manifest plus relation targets.
