@@ -354,7 +354,9 @@ a checkout exists is a fact about the current machine, so it is checked only by
 page to open, it renders in the Web view as code rather than as a link.
 
 `dokito resolve` turns any of these into absolute local paths, searching every
-registered Area and returning every match rather than choosing one.
+registered Area and returning every match rather than choosing one. It takes
+the target alone: `[[...]]` brackets or a `|display text` are reported as
+invalid input.
 
 ## Context
 

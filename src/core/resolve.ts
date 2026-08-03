@@ -88,6 +88,21 @@ async function areaMatches(
   }));
 }
 
+/**
+ * `[[Data retention|what to read]]` is the link as written in a document, not a
+ * name any Area holds. Reporting it as a malformed reference says what to do,
+ * where searching for it as a filename would only report it as unknown. Half of
+ * it counts too: a link target is cut at the first `|`, so no name that can be
+ * linked contains one.
+ */
+function isLinkSyntax(reference: string): boolean {
+  const trimmed = reference.trim();
+  return (
+    (trimmed.startsWith("[[") && trimmed.endsWith("]]")) ||
+    trimmed.includes("|")
+  );
+}
+
 /** The Area of the working directory, or undefined outside every Area. */
 async function currentArea(input: ScopeInput): Promise<string | undefined> {
   try {
@@ -103,6 +118,14 @@ async function currentArea(input: ScopeInput): Promise<string | undefined> {
 export async function resolveReference(
   input: ScopeInput & { reference: string },
 ): Promise<ResolveResult> {
+  if (isLinkSyntax(input.reference)) {
+    throw new DokitoError(
+      "reference_invalid",
+      `'${input.reference}' is Wikilink syntax, not a target. Pass only the target, without '[[...]]' or '|display text'.`,
+      { reference: input.reference },
+    );
+  }
+
   const reference = parseReference(input.reference);
   if (!reference) {
     throw new DokitoError(

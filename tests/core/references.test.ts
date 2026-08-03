@@ -339,6 +339,41 @@ describe("dokito resolve", () => {
   });
 
   /**
+   * A pasted link is a mistyped input, not an unknown name: it has to say that
+   * only the target inside the Wikilink belongs on the command line. Stripping
+   * half of it earns the same answer, because the display text is no more part
+   * of the target than the brackets are.
+   */
+  test("rejects Wikilink syntax instead of searching for it", async () => {
+    const fixture = await setup();
+
+    for (const reference of [
+      "[[architecture]]",
+      "[[architecture|the design]]",
+      "[[project:launch]]",
+      "architecture|the design",
+    ]) {
+      await expect(
+        resolveReference({
+          cwd: fixture.areaRoot,
+          configPath: fixture.configPath,
+          reference,
+        }),
+      ).rejects.toMatchObject({ code: "reference_invalid" });
+    }
+
+    expect(
+      (
+        await resolveReference({
+          cwd: fixture.areaRoot,
+          configPath: fixture.configPath,
+          reference: "architecture",
+        })
+      ).matches[0]?.relativePath,
+    ).toBe("resources/architecture.md");
+  });
+
+  /**
    * A Repository the Area registers but this machine has not checked out is a
    * fact about the machine. It earns its own code so a caller can tell it apart
    * from a name nobody knows, and the Area stays valid either way.
