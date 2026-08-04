@@ -21,21 +21,18 @@ dokito [--json] [--config <path>] <command>
 | `--version`, `-v` | Print the Dokito version |
 | `--help`, `-h` | Print command help |
 
-`--cwd <path>` resolves the Area and Repository from another directory. Only
-`register`, `context`, `resolve`, `validate`, and `search` work from a resolved
-Area, so only they accept it. No other command resolves one, so they reject
-`--cwd` rather than accepting it and ignoring it. `search --all` resolves no
-Area either and rejects `--cwd` alongside it for the same reason.
+`--cwd <path>` resolves the Area and Repository from another directory. It is
+accepted by `register`, `context`, `resolve`, `validate`, and Area-scoped
+`search`. It cannot be combined with `search --all`.
 
 The configuration path comes from `--config`, `DOKITO_CONFIG_PATH`,
 `$XDG_CONFIG_HOME/dokito/config.yaml`, or `~/.config/dokito/config.yaml`, in
 that order. It contains absolute Area paths and Area-relative Repository paths
 for this machine and must not be committed.
 
-A path named through `--config` or `DOKITO_CONFIG_PATH` must exist before
-`areas`, `projects`, `tasks`, `resolve`, and `search --all` read it; otherwise a
-mistyped path would answer with an empty registry instead of `config_not_found`.
-`register` creates the file, so it accepts a path that is not there yet.
+A path named through `--config` or `DOKITO_CONFIG_PATH` must exist for commands
+that read the registry. `register` may create it. A missing required path fails
+with `config_not_found`.
 
 ```yaml
 areas:
@@ -180,23 +177,17 @@ The complete Markdown `content` is omitted. Three cases produce a warning:
 - a Task whose Project cannot be resolved is listed, with a warning that its
   reference is unresolved.
 
-`--area` and `--status` narrow the reading before it is returned, so a caller
-that wants one Area or one status needs no second tool. They apply to the items
-and to `--summary` alike, and `areaCount` then counts what remains. Both are
-checked rather than merely filtered: an Area outside the readable registry
-fails with `area_not_found`, and a status the model does not define fails with
-`invalid_usage` naming the allowed values, because a mistyped filter would
-otherwise answer with a plausible empty list.
+`--area` and `--status` filter items or summaries. With `--area`, `areaCount`
+is 1; otherwise it counts every readable Area. An unknown or unreadable Area
+fails with `area_not_found`; an invalid status fails with `invalid_usage` and
+lists the accepted values.
 
 ```bash
 dokito tasks --area product --status in_progress --json
 ```
 
-`--summary` replaces the items with their counts, so an overview costs a few
-lines instead of the whole registry. `byStatus` names every status of the model
-in its canonical order, including the ones nothing uses, and `byArea` names
-every Area that was read, including the ones holding nothing. The same
-warnings are reported:
+`--summary` returns counts instead of items. `byStatus` includes every valid
+status, and `byArea` includes every Area read. Warnings are unchanged:
 
 ```json
 {
@@ -215,34 +206,28 @@ warnings are reported:
 dokito search <query> [--all] [--type <type>] [--limit <n>] [--cwd <path>]
 ```
 
-Finds a document by what it is called and by what it says, reading the Markdown
-files directly. There is no index, so a document is findable as soon as it is
-written. The query is matched without regard to case and across collapsed
-whitespace, and each document produces at most one hit.
+Search reads Markdown files directly and returns at most one hit per document.
+Matching ignores case and repeated whitespace. Frontmatter is not searched.
 
-Search runs in the resolved current Area. `--all` searches every readable
-registered Area instead and needs no resolved directory, which is what makes it
-usable from an agent workspace. Human output is one line per hit:
+Search uses the resolved Area by default. `--all` searches every readable
+registered Area and requires no resolved directory. Human output uses one line
+per hit:
 
 ```text
 Matches: 12 (showing 3)
 - [filename] product/tasks/01K1ABD…-revise-privacy-notice.md: Revise the privacy notice  status todo  Explain which customer data the Web app sends.
 ```
 
-Hits are ranked by why they matched: the filename first, then the title, then a
-Markdown heading, then the body. A Task in progress and an active Project come
-first among hits that matched for the same reason. Area and path decide the
-rest, so the same Areas answer the same query the same way on every machine.
-A hit its name earned carries the document's opening line and `line` 0; there is
-no single line to send a reader to.
+Hits rank by filename, title, Markdown heading, then content. Active Projects
+and Tasks in progress break ties. Area and path provide stable final ordering.
+A name match without a matching content line uses `line: 0` and the opening
+text.
 
-`--type` keeps only `projects`, `tasks`, or `resources`. The Area's `context.md`
-is reference material and counts as a Resource, while `kind` on the hit stays
-exact. `--limit` bounds the output and defaults to 20.
+`--type` accepts `projects`, `tasks`, or `resources`. `context.md` matches
+`resources` but keeps `kind: "area"`. `--limit` defaults to 20.
 
-With `--json`, `data` contains the configuration path, the query, the number of
-Areas read, the number of matches before the limit, the limit, `hits`, and
-warnings:
+With `--json`, `data` contains the configuration path, query, readable Area
+count, total matches before the limit, limit, hits, and warnings:
 
 ```json
 {
@@ -267,16 +252,12 @@ warnings:
 }
 ```
 
-`total` counts every match, so an answer the limit cut short says so instead of
-reading as the whole result. `status` is the lifecycle a Project or Task
-declares; other documents have none, and the line then omits it. An Area that
-cannot be read is reported in `warnings`, skipped, and left out of `areaCount`,
-the way the listings count it. A document that is unreadable or too large to
-search is reported the same way, and the rest of its Area stays searchable.
+`status` is present only for Projects and Tasks. Unreadable Areas and documents
+are skipped and reported in `warnings`; unreadable Areas do not count toward
+`areaCount`.
 
-An empty query fails with `query_empty`, and an unknown `--type` or a `--limit`
-that is not a whole number of at least 1 fails with `invalid_usage`, all before
-any file is opened.
+An empty query fails with `query_empty`. An invalid `--type` or a `--limit`
+below 1 or outside the integers fails with `invalid_usage`.
 
 ## `dokito context`
 

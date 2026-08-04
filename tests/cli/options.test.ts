@@ -32,7 +32,6 @@ describe("The --cwd option", () => {
   );
 });
 
-/** Only the two registry listings read a collection, so only they take these. */
 describe("The listing options", () => {
   test("are refused by areas, which reads no collection", async () => {
     for (const option of [
@@ -64,10 +63,6 @@ describe("The listing options", () => {
     },
   );
 
-  /**
-   * 'urgent' is a Task priority, so the mistake is easy to make and the message
-   * has to name what the option actually takes.
-   */
   test("rejects a status the model does not define, before reading", async () => {
     await expect(
       runCli(
@@ -98,11 +93,6 @@ describe("The listing options", () => {
   });
 });
 
-/**
- * Search is the one reading command that resolves an Area by default, so its
- * options belong to it alone and every one of them is checked before a file is
- * opened. A filter nobody validated would answer with a plausible empty result.
- */
 describe("The search options", () => {
   const search = (args: string[]): Promise<void> =>
     runCli(parseCli(["--config", "/nonexistent.yaml", ...args]));
@@ -139,7 +129,6 @@ describe("The search options", () => {
     });
   });
 
-  /** 'resource' is the kind on the hit, so the near miss has to be named. */
   test("reject a type and a limit the command does not define", async () => {
     await expect(
       search(["search", "term", "--type", "resource"]),
@@ -158,7 +147,6 @@ describe("The search options", () => {
     }
   });
 
-  /** `--cwd` names the Area to search, so `--all` would silently discard it. */
   test("keep --all and --cwd apart", async () => {
     await expect(
       search(["--cwd", "/", "search", "term", "--all"]),
@@ -168,7 +156,6 @@ describe("The search options", () => {
     ).rejects.toMatchObject({ code: "area_not_resolved" });
   });
 
-  /** Only `--all` reads the registry, so only `--all` needs the file there. */
   test("read the named configuration file when asked for every Area", async () => {
     await expect(search(["search", "term", "--all"])).rejects.toMatchObject({
       code: "config_not_found",

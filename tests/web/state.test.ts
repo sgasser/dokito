@@ -250,17 +250,7 @@ describe("Search across Areas", () => {
     expect(reading.hits.map((hit) => hit.reason)).toContain("title");
   });
 
-  /**
-   * The reasons and the document reader are now shared with `dokito search`,
-   * which ranks them in a different order for a caller that reads the whole
-   * result. This screen keeps the order it had: recorded here as the exact
-   * sequence, because a ranking regression reads as a plausible result.
-   *
-   * The timestamps are fixed so the recency key discriminates the same way on
-   * every machine: within an Area the later path is the newer file, and the
-   * second Area is newer than the first.
-   */
-  test("keeps the result order the reader already knows", async () => {
+  test("preserves Web search ranking", async () => {
     const configPath = await twoAreas();
     const roots = [
       { root: workspace?.areaRoot ?? "", offset: 0 },

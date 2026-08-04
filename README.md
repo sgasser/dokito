@@ -172,13 +172,10 @@ Projects: 2 across 3 Areas
 - [active] northwind/onboarding: Onboard Northwind
 ```
 
-`dokito tasks` does the same for Tasks, `dokito resolve <name>` says where a
-name lives, listing every Area that holds it and every match inside them, and
-`dokito search <query>` finds a document you cannot name yet, in the current
-Area or with `--all` across every registered one. The
-Web view switches between Areas. However many Areas you keep, the overview
-stays one command away — and an agent gets the same view from any directory on
-the machine.
+`dokito tasks` lists Tasks, `dokito resolve <name>` locates a known reference,
+and `dokito search <query>` finds documents by name or content. Add `--all` to
+search every registered Area. The Web view switches between Areas, while the
+CLI provides the same overview from any directory.
 
 ## Browse your work
 

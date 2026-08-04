@@ -236,7 +236,6 @@ export async function loadDocumentsArea(
     { id: area.manifest.id, name: area.manifest.name, root: area.root },
     options,
   );
-  // The explorer reads by kind and name; the inventory answers by path.
   return {
     id: area.manifest.id,
     name: area.manifest.name,

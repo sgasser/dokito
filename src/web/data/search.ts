@@ -34,12 +34,7 @@ const TYPE_LABELS: Record<WebSearchType, string> = {
   resources: "Resources",
 };
 
-/**
- * Active work first, then title matches, then content. The order was always
- * there; stating the reason on the hit is what makes it visible. It is this
- * screen's order over the shared reasons, not the only one: the CLI reads a
- * result whole and ranks the name before the running Task.
- */
+/** Preserve the Web view's active-work-first ranking. */
 const REASON_ORDER: readonly WebSearchReason[] = [
   "in progress",
   "active",

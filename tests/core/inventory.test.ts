@@ -91,11 +91,6 @@ describe("Global work inventory", () => {
     expect(tasks.tasks[0]).not.toHaveProperty("content");
   });
 
-  /**
-   * The counts are what an overview asks for, so they have to be answerable
-   * without emitting every item. Statuses nothing uses stay in the reading, or
-   * a caller cannot tell an empty status from a renamed one.
-   */
   test("counts Projects and Tasks by status and Area", async () => {
     const fixture = await setup();
 
@@ -129,10 +124,6 @@ describe("Global work inventory", () => {
     });
   });
 
-  /**
-   * A mistyped filter that answered with an empty list would read as "nothing
-   * of that kind exists", so both filters are checked against what was read.
-   */
   test("narrows a listing to one Area and one status", async () => {
     const fixture = await setup();
 
@@ -168,6 +159,53 @@ describe("Global work inventory", () => {
     await expect(
       listRegisteredTasks({ configPath: fixture.configPath, area: "nowhere" }),
     ).rejects.toMatchObject({ code: "area_not_found" });
+  });
+
+  test("reports why a registered Area is unreadable", async () => {
+    const fixture = await setup();
+
+    const unreadableRoot = path.join(fixture.root, "unreadable-area");
+    await mkdir(unreadableRoot, { recursive: true });
+    await writeFile(
+      path.join(unreadableRoot, "dokito.yaml"),
+      "version: 1\nid: unreadable\nname: Unreadable\n",
+      "utf8",
+    );
+    await writeFile(path.join(unreadableRoot, "tasks"), "not a directory\n");
+    await registerArea(fixture.configPath, "unreadable", unreadableRoot);
+
+    await registerArea(
+      fixture.configPath,
+      "gone",
+      path.join(fixture.root, "gone-area"),
+    );
+
+    await expect(
+      listRegisteredTasks({
+        configPath: fixture.configPath,
+        area: "unreadable",
+      }),
+    ).rejects.toMatchObject({
+      code: "area_not_found",
+      message: expect.stringContaining("could not be read"),
+      details: { area: "unreadable" },
+    });
+    await expect(
+      listRegisteredTasks({ configPath: fixture.configPath, area: "gone" }),
+    ).rejects.toMatchObject({
+      code: "area_not_found",
+      message: expect.stringContaining("Directory does not exist"),
+    });
+
+    await expect(
+      listRegisteredTasks({
+        configPath: fixture.configPath,
+        area: "unreadble",
+      }),
+    ).rejects.toMatchObject({
+      code: "area_not_found",
+      message: expect.stringContaining("No readable Area"),
+    });
   });
 
   test("keeps readable Areas when other registrations fail", async () => {
@@ -208,8 +246,6 @@ describe("Global work inventory", () => {
       "Skipped projects/invalid.md in Area 'broken'",
     );
 
-    // The counts read the same registry: 'broken' contributes a zero it was
-    // read for, 'missing' contributes nothing because it was never read.
     const summary = await summarizeRegisteredProjects({
       configPath: fixture.configPath,
     });
@@ -308,7 +344,6 @@ describe("Global work inventory", () => {
     expect(humanOutput).toContain(
       "Status: todo 1, in_progress 2, waiting 0, someday 0, done 1, cancelled 0",
     );
-    // Areas keep the registry's stable ID order, so the line is reproducible.
     expect(humanOutput).toContain("Areas: personal 2, product 2");
   });
 });

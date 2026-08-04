@@ -39,18 +39,8 @@ import { printJson, success } from "./output";
 
 const VERSION = packageJson.version;
 
-/**
- * As many hits as a reader scans before narrowing the query, and few enough
- * that a common word cannot fill the answer. `--limit` raises it on purpose.
- */
 const SEARCH_LIMIT = 20;
 
-/**
- * The CLI reads a result whole rather than scrolling it, so what a document is
- * named outranks what it merely mentions. Status is left out of the reasons
- * and applied as a tiebreaker, or a running Task would outrank the document
- * the query actually names.
- */
 const SEARCH_REASON_ORDER: readonly SearchReason[] = [
   "filename",
   "title",
@@ -207,7 +197,6 @@ function tasksHuman(
   ].join("\n");
 }
 
-/** Typed at the boundary, so an unknown value never reaches a comparison. */
 function listingQuery<Status extends string>(
   global: GlobalOptions,
   collection: "Project" | "Task",
@@ -250,9 +239,7 @@ function summaryHuman(
 interface SearchResult {
   configPath: string;
   query: string;
-  /** Areas that were read, the way the listings count them. */
   areaCount: number;
-  /** Every match, so a limited answer is visibly a limited answer. */
   total: number;
   limit: number;
   hits: DocumentHit[];
@@ -269,8 +256,6 @@ function searchHuman(result: SearchResult): string {
         `- [${hit.reason}] ${hit.area}/${hit.relativePath}${
           hit.line > 0 ? `:${hit.line}` : ""
         }: ${hit.title}${details([
-          // The bracket already carries the reason, so the lifecycle a hit
-          // reached through search states itself the way a listing does.
           hit.status ? `status ${hit.status}` : undefined,
           hit.snippet || undefined,
         ])}`,
@@ -278,7 +263,6 @@ function searchHuman(result: SearchResult): string {
   ].join("\n");
 }
 
-/** Typed at the boundary, so a mistyped filter never reaches a file read. */
 function searchQuery(
   global: GlobalOptions,
   args: string[],
@@ -308,11 +292,6 @@ function searchQuery(
   return { query, ...(type !== undefined ? { type } : {}), limit };
 }
 
-/**
- * The Area the caller is standing in, or the whole registry when they asked
- * for it. There is no third option: a search nobody scoped is the listing
- * problem again.
- */
 async function searchScope(
   global: GlobalOptions,
 ): Promise<{ areas: DocumentArea[]; warnings: string[] }> {

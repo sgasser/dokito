@@ -10,10 +10,6 @@ import type { FocusSelection } from "../focus";
 import type { Facet, ProjectSummary, WorkFilter } from "../model";
 import type { WebWorkItem } from "../work-items";
 
-/**
- * Resources is the destination that lists the Area file and the Area's
- * reference material; a Project file remains a document with a Project kind.
- */
 export type WebDocumentKind = DocumentKind;
 
 export type WebDocument = AreaDocument;
@@ -128,12 +124,10 @@ export interface WebProjectDashboardData extends WebDashboardBase {
   documents: WebDocumentRef[];
 }
 
-/** Search reads all Areas, so its groups are what a reader is looking for. */
 export type WebSearchType = SearchType;
 
 export type WebSearchSort = "relevance" | "updated";
 
-/** Why a hit ranks where it does, stated on the hit itself. */
 export type WebSearchReason = SearchReason;
 
 export interface WebSearchHit {

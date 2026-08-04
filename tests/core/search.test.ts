@@ -97,7 +97,6 @@ describe("Search excerpts", () => {
     expect(results[0]?.line).toBe(3);
   });
 
-  /** A hit in a heading is a different kind of hit, so it says so. */
   test("says whether the match sits in a heading", () => {
     const [heading] = searchDocumentContent(
       "# Note\n\n## Rotation\n\nThe body says nothing.",
@@ -116,7 +115,6 @@ describe("Search excerpts", () => {
   });
 });
 
-/** The order the CLI reads a whole result in; the Web states its own. */
 const CLI_ORDER: readonly SearchReason[] = [
   "filename",
   "title",
@@ -160,11 +158,6 @@ describe("Searching Area documents", () => {
       reasonOrder: CLI_ORDER,
     });
 
-  /**
-   * The core has no default scope. An Area the caller did not name is not
-   * read at all, which is what lets one command answer for one Area and
-   * another for the whole registry.
-   */
   test("reads exactly the Areas the caller names", async () => {
     const { product, writing } = await setup();
 
@@ -177,7 +170,7 @@ describe("Searching Area documents", () => {
     expect(inBoth.hits).toEqual(inWriting.hits);
   });
 
-  test("ranks by the order the surface passes, not by one of its own", async () => {
+  test("uses the supplied reason order", async () => {
     const { product } = await setup();
 
     const forAgents = await search([product], "launch");
@@ -200,11 +193,7 @@ describe("Searching Area documents", () => {
     expect(reversed.hits[0]?.relativePath).toBe("context.md");
   });
 
-  /**
-   * The reasons carry no status, so a Task that happens to be running cannot
-   * outrank the document the query actually names. Within one reason it does.
-   */
-  test("breaks a tie on the work that is under way", async () => {
+  test("uses active work as a tiebreaker", async () => {
     const { fixture, product } = await setup();
     const tasks = path.join(fixture.areaRoot, "tasks");
     await writeFile(
@@ -228,12 +217,7 @@ describe("Searching Area documents", () => {
     expect(result.hits[0]?.status).toBe("in_progress");
   });
 
-  /**
-   * A Task is filed under a ULID and a slug, so its name is often the only
-   * place the words appear. Repeating the title as the snippet would spend the
-   * line on words the caller has just read.
-   */
-  test("answers a name match with what the document opens with", async () => {
+  test("uses opening text for a name-only match", async () => {
     const { product } = await setup();
 
     const result = await search([product], "privacy");
@@ -270,11 +254,7 @@ describe("Searching Area documents", () => {
     expect(tasksOnly.hits.length).toBeLessThan(everything.hits.length);
   });
 
-  /**
-   * The same promise every other command makes: one file Dokito cannot read is
-   * that file's problem, and the Area stays searchable around it.
-   */
-  test("names a document it could not read and keeps the rest", async () => {
+  test("warns for an unreadable document and keeps other results", async () => {
     const { fixture, product } = await setup();
     const refused = path.join(fixture.areaRoot, "resources", "product.md");
     await chmod(refused, 0o000);
@@ -290,12 +270,7 @@ describe("Searching Area documents", () => {
     ]);
   });
 
-  /**
-   * `areaCount` means the same thing here as on every listing: the Areas that
-   * were read. Counting the scope instead would report a number the answer
-   * does not stand on.
-   */
-  test("leaves an Area it could not read out of the count", async () => {
+  test("excludes an unreadable Area from areaCount", async () => {
     const { fixture, product, writing } = await setup();
     const closed = path.join(fixture.areaRoot, "resources");
     await chmod(closed, 0o000);
@@ -305,7 +280,6 @@ describe("Searching Area documents", () => {
     expect(result.areaCount).toBe(1);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]).toStartWith("Skipped Area 'product':");
-    // The Area that was readable still answers.
     expect(result.hits.every((hit) => hit.area === "writing")).toBeTrue();
 
     await expect(search([product, writing], "essay")).resolves.toMatchObject({
@@ -314,7 +288,7 @@ describe("Searching Area documents", () => {
     });
   });
 
-  test("refuses a query that names nothing before it reads a file", async () => {
+  test("rejects an empty query before reading files", async () => {
     const { product } = await setup();
 
     await expect(search([product], "   ")).rejects.toMatchObject({
@@ -360,7 +334,7 @@ describe("The search command", () => {
     return { exitCode, stdout, stderr };
   }
 
-  test("defaults to the Area the caller is standing in", async () => {
+  test("defaults to the resolved Area", async () => {
     const fixture = await setup();
 
     const scoped = await runCommand(fixture, fixture.areaRoot, [
@@ -381,17 +355,11 @@ describe("The search command", () => {
     expect(scoped.stdout.trim()).toBe("Matches: 0");
     expect(everywhere.exitCode).toBe(0);
     expect(everywhere.stdout).toContain("writing/");
-    // Without an Area and without --all there is nothing to search.
     expect(unscoped.exitCode).toBe(1);
     expect(unscoped.stderr).toContain("area_not_resolved");
   });
 
-  /**
-   * The bracket carries the reason here rather than the status the listings
-   * put there, so a hit that reached a Task through search would otherwise
-   * say nothing about whether that work is still open.
-   */
-  test("names the lifecycle of a Task it found", async () => {
+  test("includes Task status in human output", async () => {
     const fixture = await setup();
 
     const found = await runCommand(fixture, fixture.root, [
@@ -406,7 +374,7 @@ describe("The search command", () => {
     );
   });
 
-  test("states how much it left out when the limit bounds the answer", async () => {
+  test("reports total matches before the limit", async () => {
     const fixture = await setup();
 
     const human = await runCommand(fixture, fixture.root, [

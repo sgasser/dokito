@@ -24,7 +24,6 @@ interface AreaIdentity {
 type ListedProject = AreaIdentity & Omit<ProjectDocument, "content">;
 type ListedTask = AreaIdentity & Omit<TaskDocument, "content">;
 
-/** Narrowing here keeps a selection answerable without a second tool. */
 interface InventoryQuery<Status extends string> {
   configPath: string;
   area?: string;
@@ -34,7 +33,6 @@ interface InventoryQuery<Status extends string> {
 type ProjectQuery = InventoryQuery<ProjectStatus>;
 type TaskQuery = InventoryQuery<TaskStatus>;
 
-/** Counts an overview needs, so a caller never reads every item for them. */
 export interface InventorySummary<Status extends string> {
   configPath: string;
   areaCount: number;
@@ -89,13 +87,13 @@ async function readRegisteredItems<T>(
           ),
         };
       } catch (error) {
+        const reason = normalizeError(error).message;
         return {
           ok: false as const,
           id,
+          reason,
           warnings: [
-            `Skipped Area '${id}' while reading ${collection}: ${
-              normalizeError(error).message
-            }`,
+            `Skipped Area '${id}' while reading ${collection}: ${reason}`,
           ],
         };
       }
@@ -104,8 +102,16 @@ async function readRegisteredItems<T>(
 
   return {
     configPath,
-    /** Only Areas that were read at all, so a skipped one stays visible. */
     areaIds: results.flatMap((result) => (result.ok ? [result.id] : [])),
+    skipped: [
+      ...[...registered.unavailable].map(([id, entry]) => ({
+        id,
+        reason: entry.error.message,
+      })),
+      ...results.flatMap((result) =>
+        result.ok ? [] : [{ id: result.id, reason: result.reason }],
+      ),
+    ],
     items: results.flatMap((result) => (result.ok ? result.items : [])),
     warnings: [
       ...registered.warnings,
@@ -114,14 +120,11 @@ async function readRegisteredItems<T>(
   };
 }
 
-/**
- * A named Area that was not read is a mistyped name, not an empty collection,
- * so it fails rather than answering with nothing.
- */
 function select<Item extends { area: string; status: string }>(
   loaded: {
     configPath: string;
     areaIds: string[];
+    skipped: Array<{ id: string; reason: string }>;
     items: Item[];
     warnings: string[];
   },
@@ -129,12 +132,17 @@ function select<Item extends { area: string; status: string }>(
 ) {
   const { area, status } = query;
   if (area !== undefined && !loaded.areaIds.includes(area)) {
+    const skipped = loaded.skipped.find((entry) => entry.id === area);
     throw new DokitoError(
       "area_not_found",
-      `No readable Area '${area}'. Readable Areas: ${
-        loaded.areaIds.join(", ") || "none"
-      }.`,
-      { area, readable: loaded.areaIds },
+      skipped
+        ? `Registered Area '${area}' could not be read: ${skipped.reason}`
+        : `No readable Area '${area}'. Readable Areas: ${
+            loaded.areaIds.join(", ") || "none"
+          }.`,
+      skipped
+        ? { area, reason: skipped.reason }
+        : { area, readable: loaded.areaIds },
     );
   }
   return {

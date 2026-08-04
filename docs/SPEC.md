@@ -77,9 +77,9 @@ current files, and make targeted changes directly.
 The CLI owns only machine-local registration and registry discovery, global
 read-only Project and Task listings, document search, scope resolution,
 validation, Task ULID generation, and the Web runtime. Before and after a
-structured file change, agents run `dokito validate`. Identities come from manifest keys or
-document paths and remain stable unless the file or key is intentionally
-renamed after all typed and Markdown relations have been checked.
+structured file change, agents run `dokito validate`. Identities come from
+manifest keys or document paths and remain stable unless the file or key is
+intentionally renamed after all typed and Markdown relations have been checked.
 
 ## Area and Repository models
 
@@ -446,37 +446,20 @@ reports which other registered Area holds a name this one does not.
 
 ## Search
 
-Search reads the Markdown files as they are on disk. Dokito keeps no index and
-sends nothing anywhere, so a document is findable as soon as it is written and
-unfindable as soon as it is removed.
+Search reads Markdown directly without an index. It ignores case and repeated
+whitespace, omits frontmatter, and returns at most one hit per document with its
+Area, kind, title, path, optional status, line, snippet, and match reason.
 
-A query is matched without regard to case, against text whose whitespace has
-been collapsed and whose leading Markdown markup has been dropped, so a match
-reads as the sentence it is. Frontmatter is not searched: it is structured
-metadata with controls of its own. Each document produces at most one hit,
-carrying the Area, the kind, the title, the Area-relative path, the declared
-Project or Task status, the matched line, a snippet windowed around the match,
-and the reason it matched.
+`dokito search` uses the reasons filename, title, heading, and content in that
+order, with active work as a tiebreaker. The Web view keeps its own reasons and
+presentation order.
 
-The reasons are shared and the order over them is not. A hit is earned by the
-filename, the title, a Markdown heading, or the body, and separately by whether
-the work is under way. `dokito search` ranks filename before title before
-heading before body, and uses a Task in progress or an active Project only to
-break a tie, because a caller who reads the whole result wants the document the
-query names. The Web view ranks running work first, then title, then body,
-because a reader scrolls. Neither order is the model's; each surface states its
-own.
+`dokito search` reads the resolved Area or every readable registered Area with
+`--all`. It returns at most `--limit` hits, defaults to 20, and reports the
+total before the limit. The Web search reads every readable Area.
 
-Scope is always explicit. `dokito search` reads the resolved current Area, or
-every readable registered Area with `--all`. The Web view reads every Area
-whatever its Area menu says, because each hit names the Area it came from.
-Every result is bounded: `dokito search` returns at most `--limit` hits,
-defaulting to 20, and reports the number of matches before the limit, so a
-shortened answer cannot be read as the whole one.
-
-An Area that cannot be read, a document the operating system refuses, and a
-document too large to search are reported as warnings and skipped. The rest of
-the Area stays searchable, the same way every other reading command behaves.
+Unreadable Areas and documents are skipped with warnings. Other documents in a
+readable Area remain searchable.
 
 ## Local configuration
 
@@ -518,13 +501,11 @@ registered Area, attach Area identity and paths to each result, omit full
 Markdown content, and list every local item. Invalid or unavailable Areas do
 not hide readable Areas and produce warnings.
 
-`--area` and `--status` narrow that reading to one readable Area or one status
-of the model. An Area that was not read and an undefined status fail rather
-than returning an empty list.
+`--area` and `--status` filter listings. Unknown or unreadable Areas and invalid
+statuses fail instead of returning an empty list.
 
-`--summary` returns the same reading as counts instead of items: the total, one
-entry per status of the model, one entry per Area that was read, and the same
-warnings. Its size does not grow with the registry.
+`--summary` returns the total and counts by status and readable Area, with the
+same warnings as the listing.
 
 ## Local Web view
 

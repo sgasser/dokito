@@ -64,7 +64,6 @@ interface Excerpt {
 
 export interface SearchContentResult extends Excerpt {
   line: number;
-  /** The match sits in a Markdown heading rather than in the prose under it. */
   heading?: boolean;
 }
 
@@ -167,12 +166,7 @@ export function searchDocumentContent(
   return matches;
 }
 
-/**
- * Why a hit ranks where it does. One list, because a reason means the same
- * thing wherever it is shown; each surface states its own order over it, since
- * what a reader scrolls and what an agent reads whole are not the same
- * question.
- */
+/** Match category; callers supply their own ranking. */
 export type SearchReason =
   | "in progress"
   | "active"
@@ -181,10 +175,7 @@ export type SearchReason =
   | "heading"
   | "content";
 
-/**
- * What a reader is looking for, rather than the four kinds a file can have.
- * The Area file is reference material, so it groups with the Resources.
- */
+/** User-facing groups; Area documents count as Resources. */
 export type SearchType = "projects" | "tasks" | "resources";
 
 export const SEARCH_TYPE_VALUES = Object.freeze([
@@ -209,35 +200,25 @@ export interface DocumentHit {
   kind: DocumentKind;
   title: string;
   relativePath: string;
-  /** The lifecycle a Project or Task declares; other documents have none. */
   status?: string;
-  /** The matched line, or 0 when only the name earned the hit. */
   line: number;
   snippet: string;
   reason: SearchReason;
 }
 
 export interface DocumentSearchResult {
-  /** Areas that were read; one that could not be read is excluded. */
   areaCount: number;
   hits: DocumentHit[];
   warnings: string[];
 }
 
 export interface DocumentSearchInput {
-  /** The Areas to read. The core has no default scope; the caller states it. */
   areas: readonly DocumentArea[];
   query: string;
   type?: SearchType;
-  /** How this surface ranks the reasons it produces. */
   reasonOrder: readonly SearchReason[];
 }
 
-/**
- * Work that is under way outranks work that is not, and only within one
- * reason: a document that merely mentions the words is not promoted over the
- * one that is named after them because a Task happens to be running.
- */
 function statusRank(hit: DocumentHit): number {
   if (hit.kind === "task") {
     return hit.status === "in_progress" ? 0 : 1;
@@ -259,11 +240,7 @@ function documentHit(
     return undefined;
   }
 
-  /*
-   * A hit its name earned shows what the document opens with. The heading a
-   * name match usually also matches would spend the line repeating the title
-   * the reader has just read, and there is no line to send them to anyway.
-   */
+  // Name matches show opening prose instead of repeating the title.
   const excerpt =
     match && !(match.heading && (named || titled))
       ? match
@@ -291,10 +268,6 @@ function documentHit(
   };
 }
 
-/**
- * One hit per document, read live from the files. There is no index to keep in
- * agreement with the Area, so a document is findable as soon as it is written.
- */
 export async function searchAreaDocuments(
   input: DocumentSearchInput,
 ): Promise<DocumentSearchResult> {
@@ -341,8 +314,7 @@ export async function searchAreaDocuments(
   );
 
   const hits = scanned.flatMap((area) => area.hits);
-  // Area and path last, so the same Areas answer the same query the same way
-  // on every machine. Nothing here reads a clock.
+  // Area and path make the final order stable.
   hits.sort(
     (a, b) =>
       input.reasonOrder.indexOf(a.reason) -
@@ -353,18 +325,12 @@ export async function searchAreaDocuments(
   );
 
   return {
-    // The Areas that were read, the way every listing counts them: one that
-    // could not be read at all is reported and left out rather than counted.
     areaCount: scanned.filter((area) => area.read).length,
     hits,
     warnings: scanned.flatMap((area) => area.warnings),
   };
 }
 
-/**
- * Every registered Area, for a caller that chose the whole registry over the
- * one Area it is standing in.
- */
 export async function registeredSearchAreas(configPath: string): Promise<{
   areas: DocumentArea[];
   warnings: string[];

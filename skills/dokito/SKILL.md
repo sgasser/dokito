@@ -1,6 +1,6 @@
 ---
 name: dokito
-description: Work with Dokito Areas and connected Repositories by discovering global Projects and Tasks, searching Area documents by name and content, resolving scope, reading and editing canonical Markdown and YAML files, and validating every structured change. Use when listing work across registered Areas, finding a document you cannot name yet, creating or registering an Area, working in an Area or connected code repository, loading scoped knowledge, selecting relations, or when the user asks to use Dokito.
+description: Work with Dokito Areas and connected Repositories by discovering work, searching documents, resolving scope, editing canonical Markdown and YAML, and validating structured changes. Use for cross-Area listings, document lookup, Area creation or registration, scoped knowledge, relation selection, or any explicit Dokito request.
 ---
 
 # Dokito
@@ -16,9 +16,9 @@ validation, and the Web runtime.
 1. Run `dokito context`.
 2. Read the exact `context.md` printed after the summary. Treat the printed
    Area root and collection paths as authoritative local paths.
-3. Read `dokito.yaml` directly from the Area root. Find a document you cannot
-   name yet with `dokito search '<query>'` rather than a shell search tool. See
-   "Discover and read" in [references/workflows.md](references/workflows.md).
+3. Read `dokito.yaml` directly from the Area root. Use `dokito search` for a
+   document you cannot name; see
+   [references/workflows.md](references/workflows.md).
 4. Load only the files relevant to the request. Do not assume that every
    Project, Resource, or Task belongs in agent context.
 
@@ -37,24 +37,15 @@ not need to belong to an Area. `dokito context` failing there is normal.
 
 1. Run `dokito areas` when the request needs the machine-local registry. Use
    only entries not marked `unavailable`.
-2. For a cross-Area overview, run `dokito projects --summary` or
-   `dokito tasks --summary`. Each answers with the total, the count per status,
-   the count per readable Area, and the warnings, so counts never cost the
-   whole listing.
-3. For a selection you will act on, narrow `dokito projects` or `dokito tasks`
-   with `--area` and `--status` rather than reading every item; see "Bounded
-   global listings" in [references/workflows.md](references/workflows.md).
-4. Treat these listings as discovery metadata. They identify each item by Area
-   and file identity, omit full Markdown content, and print warnings for skipped
-   Areas. `dokito tasks` reads only local Tasks and makes no network calls.
+2. Use `dokito projects --summary` or `dokito tasks --summary` for an overview.
+3. Use `--area` and `--status` to narrow a listing before reading it.
+4. Treat listings as discovery metadata. They omit full Markdown content and
+   report skipped Areas. `dokito tasks` makes no network calls.
 5. If the user only asked for an overview, answer from the summary. Before
    reading or editing a selected item, take its Area root from `dokito areas`,
    run `dokito --cwd <areaRoot> context`, and locate the shown file identity
    inside the printed collection path.
-6. For broader cross-Area work beyond Project or Task metadata, run
-   `dokito search '<query>' --all`, which needs no resolved directory, or
-   iterate only available registry entries and discover files inside each
-   returned collection path.
+6. Use `dokito search '<query>' --all` for other cross-Area discovery.
 
 Do not scan an arbitrary parent directory to infer registration. Do not link a
 generic agent workspace such as an OpenClaw workspace merely to make context
@@ -121,11 +112,9 @@ Create an Area only when the user asks.
 
 ## Structured changes
 
-A bounded unit is one Area and one goal. Immediately before its first write,
-resolve the scope again with `dokito context` and record the baseline with
-`dokito validate`. Repeat that preflight after an Area switch, an interruption,
-or whenever the resolved context can be stale. Consecutive patches inside one
-uninterrupted unit do not repeat it.
+A bounded unit is one Area and one goal. Before its first write, run
+`dokito context` and `dokito validate`. Repeat after an Area switch,
+interruption, or stale context.
 Read the target and its typed relation dependencies immediately before editing.
 Use a context-aware patch and preserve unrelated frontmatter, prose, links,
 lists, and checkboxes.
