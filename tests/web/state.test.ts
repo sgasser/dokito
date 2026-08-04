@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cp, writeFile } from "node:fs/promises";
+import { cp, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { registerArea } from "../../src/core/config";
+import { listAreaFiles } from "../../src/core/files";
 import { areaState, resourceState } from "../../src/core/state-model";
 import { loadSearchView, loadTasksView } from "../../src/web/data";
 import { createWebRequestHandler } from "../../src/web/server";
@@ -247,6 +248,85 @@ describe("Search across Areas", () => {
     expect(work.hits.map((hit) => hit.reason)).toContain("active");
     expect(work.hits.map((hit) => hit.type)).toContain("tasks");
     expect(reading.hits.map((hit) => hit.reason)).toContain("title");
+  });
+
+  test("keeps internal heading metadata out of Web hits", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "operations.md"),
+      "Opening note.\n\n## Rotation marker\n\nNo repeated marker.\n",
+      "utf8",
+    );
+
+    const result = await loadSearchView({
+      configPath: workspace.configPath,
+      area: "product",
+      query: "rotation marker",
+    });
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]).toMatchObject({
+      path: "resources/operations.md",
+      line: 3,
+      snippet: "Rotation marker",
+      reason: "content",
+    });
+    expect(result.hits[0]).not.toHaveProperty("heading");
+  });
+
+  test("preserves Web search ranking", async () => {
+    const configPath = await twoAreas();
+    const roots = [
+      { root: workspace?.areaRoot ?? "", offset: 0 },
+      { root: path.join(workspace?.root ?? "", "personal-area"), offset: 30 },
+    ];
+    for (const { root, offset } of roots) {
+      const files = await listAreaFiles(root);
+      await Promise.all(
+        files.map((file, index) => {
+          const stamp = new Date(Date.UTC(2026, 0, 1, 0, offset + index));
+          return utimes(path.join(root, file.path), stamp, stamp);
+        }),
+      );
+    }
+    const order = async (query: string) =>
+      (await loadSearchView({ configPath, area: "product", query })).hits.map(
+        (hit) => `${hit.reason} ${hit.areaId}/${hit.path}`,
+      );
+
+    expect(await order("launch")).toEqual([
+      "in progress personal/tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+      "in progress product/tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+      "active personal/projects/launch.md",
+      "active product/projects/launch.md",
+      "content personal/context.md",
+      "content product/context.md",
+    ]);
+    expect(await order("product")).toEqual([
+      "in progress personal/tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+      "in progress product/tasks/01K1ABCXYZ0000000000000000-coordinate-launch.md",
+      "active personal/projects/launch.md",
+      "active product/projects/launch.md",
+      "title personal/resources/product.md",
+      "title personal/context.md",
+      "title product/resources/product.md",
+      "title product/context.md",
+      "content personal/resources/markdown.md",
+      "content personal/resources/architecture.md",
+      "content product/resources/markdown.md",
+      "content product/resources/architecture.md",
+    ]);
+    expect(await order("privacy")).toEqual([
+      "title personal/tasks/01K1ABDXYZ0000000000000000-revise-privacy-notice.md",
+      "title product/tasks/01K1ABDXYZ0000000000000000-revise-privacy-notice.md",
+    ]);
   });
 
   test("marks archived Resources before opening them", async () => {

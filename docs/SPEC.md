@@ -75,11 +75,11 @@ agents discover documents from the resolved collection paths, read the
 current files, and make targeted changes directly.
 
 The CLI owns only machine-local registration and registry discovery, global
-read-only Project and Task listings, scope resolution, validation, Task
-ULID generation, and the Web runtime. Before and after a structured file
-change, agents run `dokito validate`. Identities come from manifest keys or
-document paths and remain stable unless the file or key is intentionally
-renamed after all typed and Markdown relations have been checked.
+read-only Project and Task listings, document search, scope resolution,
+validation, Task ULID generation, and the Web runtime. Before and after a
+structured file change, agents run `dokito validate`. Identities come from
+manifest keys or document paths and remain stable unless the file or key is
+intentionally renamed after all typed and Markdown relations have been checked.
 
 ## Area and Repository models
 
@@ -444,6 +444,23 @@ verdict on every machine the Area is shared with. `--links` adds the checks that
 cannot: it resolves each `repo:` target against this machine's checkouts and
 reports which other registered Area holds a name this one does not.
 
+## Search
+
+Search reads Markdown directly without an index. It ignores case and repeated
+whitespace, omits frontmatter, and returns at most one hit per document with its
+Area, kind, title, path, optional status, line, snippet, and match reason.
+
+`dokito search` uses the reasons filename, title, heading, and content in that
+order, with active work as a tiebreaker. The Web view keeps its own reasons and
+presentation order.
+
+`dokito search` reads the resolved Area or every readable registered Area with
+`--all`. It returns at most `--limit` hits, defaults to 20, and reports the
+total before the limit. The Web search reads every readable Area.
+
+Unreadable Areas and documents are skipped with warnings. Other documents in a
+readable Area remain searchable.
+
 ## Local configuration
 
 ```yaml
@@ -483,6 +500,12 @@ directory. They parse the canonical Markdown documents in every readable
 registered Area, attach Area identity and paths to each result, omit full
 Markdown content, and list every local item. Invalid or unavailable Areas do
 not hide readable Areas and produce warnings.
+
+`--area` and `--status` filter listings. Unknown or unreadable Areas and invalid
+statuses fail instead of returning an empty list.
+
+`--summary` returns the total and counts by status and readable Area, with the
+same warnings as the listing.
 
 ## Local Web view
 

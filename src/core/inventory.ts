@@ -1,13 +1,18 @@
 import { loadRegisteredAreas, type RegisteredArea } from "./areas";
 import { loadConfig } from "./config";
-import { normalizeError } from "./error";
+import { DokitoError, normalizeError } from "./error";
 import {
   type DocumentProblem,
   documentProblemWarning,
   loadProjects,
   loadTasks,
 } from "./manifests";
-import { compareTaskOrder } from "./task-model";
+import { PROJECT_STATUS_VALUES, type ProjectStatus } from "./project-model";
+import {
+  compareTaskOrder,
+  TASK_STATUS_VALUES,
+  type TaskStatus,
+} from "./task-model";
 import type { ProjectDocument, TaskDocument } from "./types";
 
 interface AreaIdentity {
@@ -18,6 +23,24 @@ interface AreaIdentity {
 
 type ListedProject = AreaIdentity & Omit<ProjectDocument, "content">;
 type ListedTask = AreaIdentity & Omit<TaskDocument, "content">;
+
+interface InventoryQuery<Status extends string> {
+  configPath: string;
+  area?: string;
+  status?: Status;
+}
+
+type ProjectQuery = InventoryQuery<ProjectStatus>;
+type TaskQuery = InventoryQuery<TaskStatus>;
+
+export interface InventorySummary<Status extends string> {
+  configPath: string;
+  areaCount: number;
+  total: number;
+  byStatus: Record<Status, number>;
+  byArea: Record<string, number>;
+  warnings: string[];
+}
 
 const PROJECT_STATUS_ORDER: Record<ProjectDocument["status"], number> = {
   active: 0,
@@ -57,18 +80,20 @@ async function readRegisteredItems<T>(
         const { items, problems } = await read(id, area);
         return {
           ok: true as const,
+          id,
           items,
           warnings: problems.map((problem) =>
             documentProblemWarning(id, problem),
           ),
         };
       } catch (error) {
+        const reason = normalizeError(error).message;
         return {
           ok: false as const,
+          id,
+          reason,
           warnings: [
-            `Skipped Area '${id}' while reading ${collection}: ${
-              normalizeError(error).message
-            }`,
+            `Skipped Area '${id}' while reading ${collection}: ${reason}`,
           ],
         };
       }
@@ -77,12 +102,85 @@ async function readRegisteredItems<T>(
 
   return {
     configPath,
-    areaCount: results.filter((result) => result.ok).length,
+    areaIds: results.flatMap((result) => (result.ok ? [result.id] : [])),
+    skipped: [
+      ...[...registered.unavailable].map(([id, entry]) => ({
+        id,
+        reason: entry.error.message,
+      })),
+      ...results.flatMap((result) =>
+        result.ok ? [] : [{ id: result.id, reason: result.reason }],
+      ),
+    ],
     items: results.flatMap((result) => (result.ok ? result.items : [])),
     warnings: [
       ...registered.warnings,
       ...results.flatMap((result) => result.warnings),
     ],
+  };
+}
+
+function select<Item extends { area: string; status: string }>(
+  loaded: {
+    configPath: string;
+    areaIds: string[];
+    skipped: Array<{ id: string; reason: string }>;
+    items: Item[];
+    warnings: string[];
+  },
+  query: { area?: string; status?: string },
+) {
+  const { area, status } = query;
+  if (area !== undefined && !loaded.areaIds.includes(area)) {
+    const skipped = loaded.skipped.find((entry) => entry.id === area);
+    throw new DokitoError(
+      "area_not_found",
+      skipped
+        ? `Registered Area '${area}' could not be read: ${skipped.reason}`
+        : `No readable Area '${area}'. Readable Areas: ${
+            loaded.areaIds.join(", ") || "none"
+          }.`,
+      skipped
+        ? { area, reason: skipped.reason }
+        : { area, readable: loaded.areaIds },
+    );
+  }
+  return {
+    ...loaded,
+    areaIds: area === undefined ? loaded.areaIds : [area],
+    items: loaded.items.filter(
+      (item) =>
+        (area === undefined || item.area === area) &&
+        (status === undefined || item.status === status),
+    ),
+  };
+}
+
+function summarize<Status extends string>(
+  loaded: {
+    configPath: string;
+    areaIds: string[];
+    items: Array<{ area: string; status: Status }>;
+    warnings: string[];
+  },
+  statuses: readonly Status[],
+): InventorySummary<Status> {
+  const byStatus = Object.fromEntries(
+    statuses.map((status) => [status, 0]),
+  ) as Record<Status, number>;
+  const byArea = Object.fromEntries(loaded.areaIds.map((id) => [id, 0]));
+  for (const item of loaded.items) {
+    byStatus[item.status] += 1;
+    byArea[item.area] = (byArea[item.area] ?? 0) + 1;
+  }
+
+  return {
+    configPath: loaded.configPath,
+    areaCount: loaded.areaIds.length,
+    total: loaded.items.length,
+    byStatus,
+    byArea,
+    warnings: loaded.warnings,
   };
 }
 
@@ -105,61 +203,76 @@ function compareTasks(a: ListedTask, b: ListedTask): number {
   return order !== 0 ? order : a.area.localeCompare(b.area);
 }
 
-export async function listRegisteredProjects(input: { configPath: string }) {
-  const loaded = await readRegisteredItems(
-    input.configPath,
-    "Projects",
-    async (id, area) => {
-      const repositories = new Set(Object.keys(area.manifest.repositories));
-      const { projects, problems } = await loadProjects(
-        area.root,
-        repositories,
-      );
-      return {
-        items: projects.map((project) => ({
-          ...identity(id, area),
-          ...omitContent(project),
-        })),
-        problems,
-      };
-    },
-  );
+function readProjects(configPath: string) {
+  return readRegisteredItems(configPath, "Projects", async (id, area) => {
+    const repositories = new Set(Object.keys(area.manifest.repositories));
+    const { projects, problems } = await loadProjects(area.root, repositories);
+    return {
+      items: projects.map((project) => ({
+        ...identity(id, area),
+        ...omitContent(project),
+      })),
+      problems,
+    };
+  });
+}
+
+export async function listRegisteredProjects(input: ProjectQuery) {
+  const loaded = select(await readProjects(input.configPath), input);
 
   return {
     configPath: loaded.configPath,
-    areaCount: loaded.areaCount,
+    areaCount: loaded.areaIds.length,
     projects: loaded.items.sort(compareProjects),
     warnings: loaded.warnings,
   };
 }
 
-export async function listRegisteredTasks(input: { configPath: string }) {
-  const loaded = await readRegisteredItems(
-    input.configPath,
-    "Tasks",
-    async (id, area) => {
-      const repositories = new Set(Object.keys(area.manifest.repositories));
-      const projects = await loadProjects(area.root, repositories);
-      const { tasks, problems } = await loadTasks(
-        area.root,
-        repositories,
-        undefined,
-        { projects },
-      );
-      return {
-        items: tasks.map((task) => ({
-          ...identity(id, area),
-          ...omitContent(task),
-        })),
-        problems: [...projects.problems, ...problems],
-      };
-    },
+export async function summarizeRegisteredProjects(
+  input: ProjectQuery,
+): Promise<InventorySummary<ProjectStatus>> {
+  return summarize(
+    select(await readProjects(input.configPath), input),
+    PROJECT_STATUS_VALUES,
   );
+}
+
+function readTasks(configPath: string) {
+  return readRegisteredItems(configPath, "Tasks", async (id, area) => {
+    const repositories = new Set(Object.keys(area.manifest.repositories));
+    const projects = await loadProjects(area.root, repositories);
+    const { tasks, problems } = await loadTasks(
+      area.root,
+      repositories,
+      undefined,
+      { projects },
+    );
+    return {
+      items: tasks.map((task) => ({
+        ...identity(id, area),
+        ...omitContent(task),
+      })),
+      problems: [...projects.problems, ...problems],
+    };
+  });
+}
+
+export async function listRegisteredTasks(input: TaskQuery) {
+  const loaded = select(await readTasks(input.configPath), input);
 
   return {
     configPath: loaded.configPath,
-    areaCount: loaded.areaCount,
+    areaCount: loaded.areaIds.length,
     tasks: loaded.items.sort(compareTasks),
     warnings: loaded.warnings,
   };
+}
+
+export async function summarizeRegisteredTasks(
+  input: TaskQuery,
+): Promise<InventorySummary<TaskStatus>> {
+  return summarize(
+    select(await readTasks(input.configPath), input),
+    TASK_STATUS_VALUES,
+  );
 }

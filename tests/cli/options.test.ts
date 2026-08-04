@@ -32,6 +32,137 @@ describe("The --cwd option", () => {
   );
 });
 
+describe("The listing options", () => {
+  test("are refused by areas, which reads no collection", async () => {
+    for (const option of [
+      ["--summary"],
+      ["--area", "product"],
+      ["--status", "done"],
+    ]) {
+      await expect(
+        runCli(parseCli(["--config", "/nonexistent.yaml", ...option, "areas"])),
+      ).rejects.toThrow(`Option ${option[0]} is not valid for this command.`);
+    }
+  });
+
+  test.each(["projects", "tasks"])(
+    "reach the registry through %s",
+    async (command) => {
+      await expect(
+        runCli(
+          parseCli([
+            "--config",
+            "/nonexistent.yaml",
+            "--summary",
+            "--area",
+            "product",
+            command,
+          ]),
+        ),
+      ).rejects.toMatchObject({ code: "config_not_found" });
+    },
+  );
+
+  test("rejects a status the model does not define, before reading", async () => {
+    await expect(
+      runCli(
+        parseCli([
+          "--config",
+          "/nonexistent.yaml",
+          "--status",
+          "urgent",
+          "tasks",
+        ]),
+      ),
+    ).rejects.toThrow(
+      "Unknown Task status 'urgent'. Use one of: todo, in_progress, waiting, someday, done, cancelled.",
+    );
+    await expect(
+      runCli(
+        parseCli([
+          "--config",
+          "/nonexistent.yaml",
+          "--status",
+          "todo",
+          "projects",
+        ]),
+      ),
+    ).rejects.toThrow(
+      "Unknown Project status 'todo'. Use one of: planned, active, done, cancelled.",
+    );
+  });
+});
+
+describe("The search options", () => {
+  const search = (args: string[]): Promise<void> =>
+    runCli(parseCli(["--config", "/nonexistent.yaml", ...args]));
+
+  test("are refused by the commands that never search", async () => {
+    for (const option of [["--all"], ["--type", "tasks"], ["--limit", "5"]]) {
+      await expect(search([...option, "projects"])).rejects.toThrow(
+        `Option ${option[0]} is not valid for this command.`,
+      );
+    }
+  });
+
+  test("do not include the listing filters", async () => {
+    for (const option of [
+      ["--summary"],
+      ["--area", "product"],
+      ["--status", "todo"],
+    ]) {
+      await expect(search([...option, "search", "term"])).rejects.toThrow(
+        `Option ${option[0]} is not valid for this command.`,
+      );
+    }
+  });
+
+  test("need exactly one query that names something", async () => {
+    await expect(search(["search"])).rejects.toThrow(
+      "Expected one search query.",
+    );
+    await expect(search(["search", "a", "b"])).rejects.toThrow(
+      "Expected one search query.",
+    );
+    await expect(search(["search", "   "])).rejects.toMatchObject({
+      code: "query_empty",
+    });
+  });
+
+  test("reject a type and a limit the command does not define", async () => {
+    await expect(
+      search(["search", "term", "--type", "resource"]),
+    ).rejects.toThrow(
+      "Unknown search type 'resource'. Use one of: projects, tasks, resources.",
+    );
+    for (const limit of [
+      ["--limit", "0"],
+      ["--limit=-1"],
+      ["--limit", "1.5"],
+      ["--limit", "many"],
+    ]) {
+      await expect(search(["search", "term", ...limit])).rejects.toThrow(
+        "Search limit must be a whole number of at least 1.",
+      );
+    }
+  });
+
+  test("keep --all and --cwd apart", async () => {
+    await expect(
+      search(["--cwd", "/", "search", "term", "--all"]),
+    ).rejects.toThrow("Options --all and --cwd cannot be combined.");
+    await expect(
+      search(["--cwd", "/", "search", "term"]),
+    ).rejects.toMatchObject({ code: "area_not_resolved" });
+  });
+
+  test("read the named configuration file when asked for every Area", async () => {
+    await expect(search(["search", "term", "--all"])).rejects.toMatchObject({
+      code: "config_not_found",
+    });
+  });
+});
+
 /** Git is the second of two ways in, so its failure named the wrong subject. */
 describe("Resolving no Area", () => {
   test("names Areas rather than Git, and where to look", async () => {

@@ -1,3 +1,5 @@
+import type { AreaDocument, DocumentKind } from "../../core/documents";
+import type { SearchReason, SearchType } from "../../core/search";
 import type { DocumentState } from "../../core/state-model";
 import type {
   ProjectDocument,
@@ -8,29 +10,9 @@ import type { FocusSelection } from "../focus";
 import type { Facet, ProjectSummary, WorkFilter } from "../model";
 import type { WebWorkItem } from "../work-items";
 
-/**
- * Projects and Tasks are Markdown documents too, so the medium keeps its own
- * word. Resources is the destination that lists the Area file and the Area's
- * reference material; a Project file remains a document with a Project kind.
- */
-export type WebDocumentKind = "area" | "project" | "resource" | "task";
+export type WebDocumentKind = DocumentKind;
 
-export interface WebDocument {
-  areaId: string;
-  areaName: string;
-  title: string;
-  relativePath: string;
-  kind: WebDocumentKind;
-  /** What the file's own frontmatter declares; anything silent is active. */
-  state: DocumentState;
-  bytes: number;
-  modifiedAt: string;
-  content: string;
-  /** The file is listed but could not be read; its content is empty. */
-  unreadable?: boolean;
-  /** The file is too large to read on every request; its content is empty. */
-  oversized?: boolean;
-}
+export type WebDocument = AreaDocument;
 
 /** A document reached from the open one, in either link direction. */
 export interface WebRelatedDocument {
@@ -142,17 +124,11 @@ export interface WebProjectDashboardData extends WebDashboardBase {
   documents: WebDocumentRef[];
 }
 
-/**
- * Search reads all Areas, so its groups are the three things a
- * reader is looking for rather than the four kinds a file can have. The Area
- * file is reference material like the rest of Resources.
- */
-export type WebSearchType = "tasks" | "projects" | "resources";
+export type WebSearchType = SearchType;
 
 export type WebSearchSort = "relevance" | "updated";
 
-/** Why a hit ranks where it does, stated on the hit itself. */
-export type WebSearchReason = "in progress" | "active" | "title" | "content";
+export type WebSearchReason = SearchReason;
 
 export interface WebSearchHit {
   areaId: string;

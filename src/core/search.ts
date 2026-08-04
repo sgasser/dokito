@@ -1,4 +1,14 @@
-import { fail } from "./error";
+import { loadRegisteredAreas } from "./areas";
+import { loadConfig } from "./config";
+import {
+  type AreaDocument,
+  type DocumentArea,
+  type DocumentKind,
+  documentName,
+  loadAreaDocuments,
+} from "./documents";
+import { fail, normalizeError } from "./error";
+import { frontmatterField } from "./markdown";
 
 const SNIPPET_LENGTH = 240;
 const LEADING_MARKUP = /^(?:#{1,6}\s+|>\s+|[-*+]\s+|\d+[.)]\s+)/;
@@ -54,6 +64,7 @@ interface Excerpt {
 
 export interface SearchContentResult extends Excerpt {
   line: number;
+  heading?: boolean;
 }
 
 /**
@@ -132,11 +143,13 @@ export function searchDocumentContent(
     if (match < 0) {
       continue;
     }
+    const isHeading = raw.trimStart().startsWith("#");
     const result = {
       line: index + 1,
       ...excerpt(line, match, needle.length),
+      ...(isHeading ? { heading: true } : {}),
     };
-    if (perDocument && raw.trimStart().startsWith("#")) {
+    if (perDocument && isHeading) {
       heading ??= result;
       continue;
     }
@@ -151,4 +164,184 @@ export function searchDocumentContent(
     matches.push(heading);
   }
   return matches;
+}
+
+/** Match category; callers supply their own ranking. */
+export type SearchReason =
+  | "in progress"
+  | "active"
+  | "filename"
+  | "title"
+  | "heading"
+  | "content";
+
+/** User-facing groups; Area documents count as Resources. */
+export type SearchType = "projects" | "tasks" | "resources";
+
+export const SEARCH_TYPE_VALUES = Object.freeze([
+  "projects",
+  "tasks",
+  "resources",
+] as const satisfies readonly SearchType[]);
+
+export function isSearchType(value: string): value is SearchType {
+  return SEARCH_TYPE_VALUES.some((type) => type === value);
+}
+
+export function documentSearchType(kind: DocumentKind): SearchType {
+  if (kind === "task") {
+    return "tasks";
+  }
+  return kind === "project" ? "projects" : "resources";
+}
+
+export interface DocumentHit {
+  area: string;
+  kind: DocumentKind;
+  title: string;
+  relativePath: string;
+  status?: string;
+  line: number;
+  snippet: string;
+  reason: SearchReason;
+}
+
+export interface DocumentSearchResult {
+  areaCount: number;
+  hits: DocumentHit[];
+  warnings: string[];
+}
+
+export interface DocumentSearchInput {
+  areas: readonly DocumentArea[];
+  query: string;
+  type?: SearchType;
+  reasonOrder: readonly SearchReason[];
+}
+
+function statusRank(hit: DocumentHit): number {
+  if (hit.kind === "task") {
+    return hit.status === "in_progress" ? 0 : 1;
+  }
+  return hit.kind === "project" && hit.status === "active" ? 0 : 1;
+}
+
+function documentHit(
+  document: AreaDocument,
+  query: string,
+  needle: string,
+): DocumentHit | undefined {
+  const named = documentName(document.relativePath)
+    .toLocaleLowerCase()
+    .includes(needle);
+  const titled = document.title.toLocaleLowerCase().includes(needle);
+  const match = searchDocumentContent(document.content, query, true)[0];
+  if (!match && !named && !titled) {
+    return undefined;
+  }
+
+  // Name matches show opening prose instead of repeating the title.
+  const excerpt =
+    match && !(match.heading && (named || titled))
+      ? match
+      : openingExcerpt(document.content);
+  const status =
+    document.kind === "project" || document.kind === "task"
+      ? frontmatterField(document.content, "status")
+      : undefined;
+
+  return {
+    area: document.areaId,
+    kind: document.kind,
+    title: document.title,
+    relativePath: document.relativePath,
+    ...(status ? { status } : {}),
+    line: excerpt.line,
+    snippet: excerpt.snippet,
+    reason: named
+      ? "filename"
+      : titled
+        ? "title"
+        : match?.heading
+          ? "heading"
+          : "content",
+  };
+}
+
+export async function searchAreaDocuments(
+  input: DocumentSearchInput,
+): Promise<DocumentSearchResult> {
+  const query = input.query.trim();
+  fail(query.length > 0, "query_empty", "Search query cannot be empty.");
+  const needle = compact(query).toLocaleLowerCase();
+
+  const scanned = await Promise.all(
+    input.areas.map(async (area) => {
+      const hits: DocumentHit[] = [];
+      const warnings: string[] = [];
+      let documents: AreaDocument[];
+      try {
+        documents = await loadAreaDocuments(area);
+      } catch (error) {
+        return {
+          read: false,
+          hits,
+          warnings: [
+            `Skipped Area '${area.id}': ${normalizeError(error).message}`,
+          ],
+        };
+      }
+
+      for (const document of documents) {
+        if (document.unreadable || document.oversized) {
+          warnings.push(
+            `Skipped ${document.relativePath} in Area '${area.id}': the file is ${
+              document.unreadable ? "unreadable" : "too large to search"
+            }.`,
+          );
+          continue;
+        }
+        if (input.type && documentSearchType(document.kind) !== input.type) {
+          continue;
+        }
+        const hit = documentHit(document, query, needle);
+        if (hit) {
+          hits.push(hit);
+        }
+      }
+      return { read: true, hits, warnings };
+    }),
+  );
+
+  const hits = scanned.flatMap((area) => area.hits);
+  // Area and path make the final order stable.
+  hits.sort(
+    (a, b) =>
+      input.reasonOrder.indexOf(a.reason) -
+        input.reasonOrder.indexOf(b.reason) ||
+      statusRank(a) - statusRank(b) ||
+      a.area.localeCompare(b.area) ||
+      a.relativePath.localeCompare(b.relativePath),
+  );
+
+  return {
+    areaCount: scanned.filter((area) => area.read).length,
+    hits,
+    warnings: scanned.flatMap((area) => area.warnings),
+  };
+}
+
+export async function registeredSearchAreas(configPath: string): Promise<{
+  areas: DocumentArea[];
+  warnings: string[];
+}> {
+  const registered = await loadRegisteredAreas(await loadConfig(configPath));
+  return {
+    areas: [...registered.areas].map(([id, area]) => ({
+      id,
+      name: area.manifest.name,
+      root: area.root,
+    })),
+    warnings: registered.warnings,
+  };
 }

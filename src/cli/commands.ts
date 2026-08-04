@@ -1,10 +1,29 @@
 import packageJson from "../../package.json";
 import { listAreas, registerExistingArea } from "../core/areas";
 import { context } from "../core/context";
+import type { DocumentArea } from "../core/documents";
 import { DokitoError } from "../core/error";
 import { pathExists } from "../core/files";
-import { listRegisteredProjects, listRegisteredTasks } from "../core/inventory";
+import {
+  type InventorySummary,
+  listRegisteredProjects,
+  listRegisteredTasks,
+  summarizeRegisteredProjects,
+  summarizeRegisteredTasks,
+} from "../core/inventory";
+import { isProjectStatus, PROJECT_STATUS_VALUES } from "../core/project-model";
 import { resolveReference } from "../core/resolve";
+import { resolveScope } from "../core/scope";
+import {
+  type DocumentHit,
+  isSearchType,
+  registeredSearchAreas,
+  SEARCH_TYPE_VALUES,
+  type SearchReason,
+  type SearchType,
+  searchAreaDocuments,
+} from "../core/search";
+import { isTaskStatus, TASK_STATUS_VALUES } from "../core/task-model";
 import { createUlid } from "../core/ulid";
 import { validateArea } from "../core/validate";
 import {
@@ -20,6 +39,15 @@ import { printJson, success } from "./output";
 
 const VERSION = packageJson.version;
 
+const SEARCH_LIMIT = 20;
+
+const SEARCH_REASON_ORDER: readonly SearchReason[] = [
+  "filename",
+  "title",
+  "heading",
+  "content",
+];
+
 function usage(): string {
   return `Dokito ${VERSION}
 
@@ -29,8 +57,9 @@ Usage:
 Commands:
   register <area-path> [--cwd <path>]
   areas
-  projects
-  tasks
+  projects [--area <id>] [--status <status>] [--summary]
+  tasks [--area <id>] [--status <status>] [--summary]
+  search <query> [--all] [--type <type>] [--limit <n>] [--cwd <path>]
   context [--raw] [--cwd <path>]
   resolve <reference> [--cwd <path>]
   validate [--links] [--cwd <path>]
@@ -49,6 +78,12 @@ Global options:
 Command options:
   --cwd <path>     Resolve the Area and Repository from another directory
   --links          Resolve every link and Repository checkout
+  --summary        Return counts by status and Area instead of every item
+  --area <id>      Restrict a listing to one readable Area
+  --status <s>     Restrict a listing to one Project or Task status
+  --all            Search every registered Area instead of the resolved one
+  --type <t>       Restrict search hits to ${SEARCH_TYPE_VALUES.join(", ")}
+  --limit <n>      Return at most n search hits (default ${SEARCH_LIMIT})
 
 A <reference> is a filename, 'project:<id>', 'task:<ULID>' or 'repo:<id>[/path]'.
 Pass the target inside the Wikilink, without '[[...]]' or '|display text'.
@@ -162,6 +197,118 @@ function tasksHuman(
   ].join("\n");
 }
 
+function listingQuery<Status extends string>(
+  global: GlobalOptions,
+  collection: "Project" | "Task",
+  isStatus: (value: string) => value is Status,
+  allowed: readonly Status[],
+): { configPath: string; area?: string; status?: Status } {
+  const status = global.values.get("status");
+  if (status !== undefined && !isStatus(status)) {
+    throw new DokitoError(
+      "invalid_usage",
+      `Unknown ${collection} status '${status}'. Use one of: ${allowed.join(", ")}.`,
+    );
+  }
+  const area = global.values.get("area");
+  return {
+    configPath: global.configPath,
+    ...(area !== undefined ? { area } : {}),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
+function counts(values: Record<string, number>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `${key} ${value}`)
+    .join(", ");
+}
+
+function summaryHuman(
+  collection: "Projects" | "Tasks",
+  result: InventorySummary<string>,
+): string {
+  const areas = counts(result.byArea);
+  return [
+    inventoryHeader(collection, result.total, result.areaCount),
+    `Status: ${counts(result.byStatus)}`,
+    ...(areas === "" ? [] : [`Areas: ${areas}`]),
+  ].join("\n");
+}
+
+interface SearchResult {
+  configPath: string;
+  query: string;
+  areaCount: number;
+  total: number;
+  limit: number;
+  hits: DocumentHit[];
+  warnings: string[];
+}
+
+function searchHuman(result: SearchResult): string {
+  return [
+    result.total === result.hits.length
+      ? `Matches: ${result.total}`
+      : `Matches: ${result.total} (showing ${result.hits.length})`,
+    ...result.hits.map(
+      (hit) =>
+        `- [${hit.reason}] ${hit.area}/${hit.relativePath}${
+          hit.line > 0 ? `:${hit.line}` : ""
+        }: ${hit.title}${details([
+          hit.status ? `status ${hit.status}` : undefined,
+          hit.snippet || undefined,
+        ])}`,
+    ),
+  ].join("\n");
+}
+
+function searchQuery(
+  global: GlobalOptions,
+  args: string[],
+): { query: string; type?: SearchType; limit: number } {
+  const query = onePositional(args, "search query").trim();
+  if (query.length === 0) {
+    throw new DokitoError("query_empty", "Search query cannot be empty.");
+  }
+
+  const type = global.values.get("type");
+  if (type !== undefined && !isSearchType(type)) {
+    throw new DokitoError(
+      "invalid_usage",
+      `Unknown search type '${type}'. Use one of: ${SEARCH_TYPE_VALUES.join(", ")}.`,
+    );
+  }
+
+  const limitValue = global.values.get("limit");
+  const limit = limitValue === undefined ? SEARCH_LIMIT : Number(limitValue);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new DokitoError(
+      "invalid_usage",
+      "Search limit must be a whole number of at least 1.",
+    );
+  }
+
+  return { query, ...(type !== undefined ? { type } : {}), limit };
+}
+
+async function searchScope(
+  global: GlobalOptions,
+): Promise<{ areas: DocumentArea[]; warnings: string[] }> {
+  if (global.booleans.has("all")) {
+    await requireNamedConfig(global);
+    return registeredSearchAreas(global.configPath);
+  }
+  const scope = await resolveScope({
+    cwd: global.cwd,
+    configPath: global.configPath,
+  });
+  return {
+    areas: [{ id: scope.area, name: scope.areaName, root: scope.areaRoot }],
+    warnings: scope.warnings,
+  };
+}
+
 function contextHuman(result: Awaited<ReturnType<typeof context>>): string {
   return [
     `Area: ${result.area}  ${result.areaRoot}`,
@@ -247,29 +394,79 @@ export async function runCli(global: GlobalOptions): Promise<void> {
   }
 
   if (command === "projects") {
-    assertOptions(global, []);
+    assertOptions(global, ["summary", "area", "status"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "projects accepts no arguments.");
     }
+    const query = listingQuery(
+      global,
+      "Project",
+      isProjectStatus,
+      PROJECT_STATUS_VALUES,
+    );
     await requireNamedConfig(global);
-    const result = await listRegisteredProjects({
-      configPath: global.configPath,
-    });
+    if (global.booleans.has("summary")) {
+      const summary = await summarizeRegisteredProjects(query);
+      success(global.json, summary, summaryHuman("Projects", summary));
+      writeWarnings(global.json, summary.warnings);
+      return;
+    }
+    const result = await listRegisteredProjects(query);
     success(global.json, result, projectsHuman(result));
     writeWarnings(global.json, result.warnings);
     return;
   }
 
   if (command === "tasks") {
-    assertOptions(global, []);
+    assertOptions(global, ["summary", "area", "status"]);
     if (args.length > 0) {
       throw new DokitoError("invalid_usage", "tasks accepts no arguments.");
     }
+    const query = listingQuery(
+      global,
+      "Task",
+      isTaskStatus,
+      TASK_STATUS_VALUES,
+    );
     await requireNamedConfig(global);
-    const result = await listRegisteredTasks({
-      configPath: global.configPath,
-    });
+    if (global.booleans.has("summary")) {
+      const summary = await summarizeRegisteredTasks(query);
+      success(global.json, summary, summaryHuman("Tasks", summary));
+      writeWarnings(global.json, summary.warnings);
+      return;
+    }
+    const result = await listRegisteredTasks(query);
     success(global.json, result, tasksHuman(result));
+    writeWarnings(global.json, result.warnings);
+    return;
+  }
+
+  if (command === "search") {
+    assertOptions(global, ["all", "type", "limit", "cwd"]);
+    const { query, type, limit } = searchQuery(global, args);
+    if (global.booleans.has("all") && global.commandOptions.has("cwd")) {
+      throw new DokitoError(
+        "invalid_usage",
+        "Options --all and --cwd cannot be combined.",
+      );
+    }
+    const scope = await searchScope(global);
+    const found = await searchAreaDocuments({
+      areas: scope.areas,
+      query,
+      ...(type !== undefined ? { type } : {}),
+      reasonOrder: SEARCH_REASON_ORDER,
+    });
+    const result: SearchResult = {
+      configPath: global.configPath,
+      query,
+      areaCount: found.areaCount,
+      total: found.hits.length,
+      limit,
+      hits: found.hits.slice(0, limit),
+      warnings: [...scope.warnings, ...found.warnings],
+    };
+    success(global.json, result, searchHuman(result));
     writeWarnings(global.json, result.warnings);
     return;
   }

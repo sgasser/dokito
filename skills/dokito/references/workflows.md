@@ -3,7 +3,30 @@
 ## Discover and read
 
 Run `dokito context`, then use the printed paths. Read `dokito.yaml` for
-Repository registrations. Search only inside the printed collection paths.
+Repository registrations.
+
+Resolve a known reference with `dokito resolve '<target>'`. Find an unknown
+document with `dokito search`; it ranks filename, title, heading, then content.
+
+```bash
+dokito search 'data retention'
+dokito search 'retention' --type resources --limit 5
+dokito search 'retention' --all          # every registered Area
+```
+
+Each hit includes its Area and relative path. For `--all`, get the Area root
+from `dokito areas` before opening the file. Narrow large result sets with a
+more specific query or `--type`.
+
+## Bounded global listings
+
+Use `--summary` for counts. Without it, `projects` and `tasks` return every
+item; add `--area` and `--status` before reading a narrower listing.
+
+```bash
+dokito projects --summary
+dokito tasks --area product --status in_progress
+```
 
 ## Create
 

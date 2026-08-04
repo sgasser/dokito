@@ -1,6 +1,10 @@
 import { frontmatterField } from "../../core/markdown";
 import { isProjectStatus, projectStatusLabel } from "../../core/project-model";
-import { openingExcerpt, searchDocumentContent } from "../../core/search";
+import {
+  documentSearchType,
+  openingExcerpt,
+  searchDocumentContent,
+} from "../../core/search";
 import { documentStateLabel } from "../../core/state-model";
 import { isTaskStatus, taskStatusLabel } from "../../core/task-model";
 import { documentLabel } from "../kinds";
@@ -30,18 +34,7 @@ const TYPE_LABELS: Record<WebSearchType, string> = {
   resources: "Resources",
 };
 
-/** The Area file is reference material, so it groups with the Resources. */
-function searchType(document: WebDocument): WebSearchType {
-  if (document.kind === "task") {
-    return "tasks";
-  }
-  return document.kind === "project" ? "projects" : "resources";
-}
-
-/**
- * Active work first, then title matches, then content. The order was always
- * there; stating the reason on the hit is what makes it visible.
- */
+/** Preserve the Web view's active-work-first ranking. */
 const REASON_ORDER: readonly WebSearchReason[] = [
   "in progress",
   "active",
@@ -153,9 +146,12 @@ export async function loadSearchView(
                   path: document.relativePath,
                   title: documentLabel(document),
                   kind: document.kind,
-                  type: searchType(document),
+                  type: documentSearchType(document.kind),
                   meta: hitMeta(document),
-                  ...result,
+                  line: result.line,
+                  snippet: result.snippet,
+                  matchStart: result.matchStart,
+                  matchLength: result.matchLength,
                   modifiedAt: document.modifiedAt,
                   reason: hitReason(document, needle),
                 },
