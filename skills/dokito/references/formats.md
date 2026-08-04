@@ -113,7 +113,7 @@ dates.
 ## Task
 
 Task identity is an uppercase 26-character ULID at the start of a filename
-directly below `tasks/`. Generate it with `dokito id --json`. The name must be
+directly below `tasks/`. Generate it with `dokito id`. The name must be
 `<ULID>-<slug>.md`: the hyphen and the slug are required, and the slug uses
 only lowercase letters, digits, and hyphens. The slug describes the Task and
 does not change its identity, but omitting it, or spelling it with capitals,

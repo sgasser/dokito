@@ -2,9 +2,8 @@
 
 ## Discover and read
 
-Run `dokito context --json`, then use the returned paths. Read `dokito.yaml`
-for Repository registrations. Use `rg --files` in a collection for
-identity discovery and `rg -n` for content search.
+Run `dokito context`, then use the printed paths. Read `dokito.yaml` for
+Repository registrations. Search only inside the printed collection paths.
 
 ## Create
 
@@ -16,7 +15,7 @@ identity discovery and `rg -n` for content search.
 5. Add prose directly to that file.
 6. Validate, re-read, and inspect the diff.
 
-For a Task, run `dokito id --json` and use `data.id` as the filename prefix.
+For a Task, run `dokito id` and use the printed ID as the filename prefix.
 
 ## Update
 

@@ -87,17 +87,16 @@ describe("Web work items", () => {
       { ...detailInput, conductorAvailable: true },
       taskItem,
     );
+    const actionUrl = decodeURIComponent(selected.action?.url ?? "");
 
     expect(selected.action?.kind).toBe("conductor");
     expect(selected.action?.url).toContain(
       encodeURIComponent(workspace.codeRoot),
     );
-    expect(decodeURIComponent(selected.action?.url ?? "")).toContain(
-      `Task file: ${taskItem.task.relativePath}`,
-    );
-    expect(decodeURIComponent(selected.action?.url ?? "")).toContain(
-      "follow the installed Dokito skill",
-    );
+    expect(actionUrl).toContain(`Task file: ${taskItem.task.relativePath}`);
+    expect(actionUrl).toContain("follow the installed Dokito skill");
+    expect(actionUrl).toContain("Run `dokito context`");
+    expect(actionUrl).not.toContain("--json");
     expect(
       (
         await enrichWebWorkItem(
