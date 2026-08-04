@@ -131,7 +131,7 @@ ID-sorted Area entries, and warnings:
 
 Unavailable or mismatched registrations remain visible with
 `available: false` and a structured `error`. Select an available Area and run
-`dokito --cwd <area-path> context --json` before reading or editing its files.
+`dokito --cwd <area-path> context` before reading or editing its files.
 
 ## `dokito projects` and `dokito tasks`
 
@@ -350,9 +350,9 @@ and search results. It does not edit Markdown.
 ## Direct model changes
 
 Create and edit `dokito.yaml`, `context.md`, and Markdown documents with an
-editor or agent. Use `dokito context --json` to obtain the resolved paths,
-`dokito id --json` for a new Task identity, and `dokito validate --json`
-before and after a structured change.
+editor or agent. Use `dokito context` to obtain the resolved paths, `dokito id`
+for a new Task identity, and `dokito validate` before and after a structured
+change.
 
 The canonical formats and relation rules are defined in the
 [specification](SPEC.md). The bundled Dokito skill adds a safe direct-edit

@@ -111,7 +111,7 @@ function conductorUrl(input: {
     `Repository: ${input.repository}`,
     `Task file: ${input.task.relativePath}`,
     "",
-    "Run `dokito context --json`, read the Task file, and follow the installed Dokito skill for its lifecycle and validation workflow.",
+    "Run `dokito context`, read the Task file, and follow the installed Dokito skill for its lifecycle and validation workflow.",
   ].join("\n");
 
   return `conductor://prompt=${encodeURIComponent(prompt)}&path=${encodeURIComponent(input.repositoryPath)}`;

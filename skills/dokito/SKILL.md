@@ -13,12 +13,11 @@ Web runtime.
 
 ## Start work
 
-1. Run `dokito context --json`.
-2. Read `data.context`. Use `data.areaRoot`, `data.manifestPath`,
-   `data.contextPath`, `data.projects.path`, `data.resources.path`, and
-   `data.tasks.path` as the authoritative local paths.
-3. Read `dokito.yaml` directly. Discover model files with `rg --files` inside
-   only the returned collection paths, and use `rg` for content search.
+1. Run `dokito context`.
+2. Read the exact `context.md` printed after the summary. Treat the printed
+   Area root and collection paths as authoritative local paths.
+3. Read `dokito.yaml` directly from the Area root. Search for model files only
+   inside the printed collection paths.
 4. Load only the files relevant to the request. Do not assume that every
    Project, Resource, or Task belongs in agent context.
 
@@ -33,20 +32,19 @@ verified sibling or the machine-local path is configured.
 ## Discover Areas and work from unscoped work
 
 An agent runtime workspace, home directory, or orchestration Repository does
-not need to belong to an Area. `dokito context --json` failing there is normal.
+not need to belong to an Area. `dokito context` failing there is normal.
 
-1. Run `dokito areas --json` when the request needs the machine-local registry.
-   Treat only entries with `available: true` as selectable Areas.
-2. For a cross-Area work overview, run `dokito projects --json` or
-   `dokito tasks --json`. Both list every local item.
-3. Treat these listings as discovery metadata. They attach `area`, `areaName`,
-   `areaRoot`, and `relativePath`, omit full Markdown content, and report
-   skipped Areas in `warnings`. `dokito tasks` reads only local Tasks and makes
-   no network calls.
+1. Run `dokito areas` when the request needs the machine-local registry. Use
+   only entries not marked `unavailable`.
+2. For a cross-Area work overview, run `dokito projects` or `dokito tasks`.
+   Both list every local item.
+3. Treat these listings as discovery metadata. They identify each item by Area
+   and file identity, omit full Markdown content, and print warnings for skipped
+   Areas. `dokito tasks` reads only local Tasks and makes no network calls.
 4. If the user only asked for an overview, answer from the global listing.
-   Before reading or editing a selected item, run
-   `dokito --cwd <areaRoot> context --json`, then use its canonical paths and
-   the selected `relativePath`.
+   Before reading or editing a selected item, take its Area root from
+   `dokito areas`, run `dokito --cwd <areaRoot> context`, and locate the shown
+   file identity inside the printed collection path.
 5. For broader cross-Area work beyond Project or Task metadata, iterate only
    available registry entries and discover files inside each returned
    collection path.
@@ -72,8 +70,8 @@ read]]`.
 
 Never write a machine path such as `/Users/...` or `~/...` into an Area. It is
 wrong on every other machine and defeats sharing the Area. Reference the
-Repository instead, and run `dokito resolve <target> --json` when a real local
-path is needed for the current step. The target is what stands inside the
+Repository instead, and run `dokito resolve <target>` when a real local path is
+needed for the current step. The target is what stands inside the
 brackets, without `[[...]]` and without `|display text`.
 
 Link only within the current Area. When something belongs to another Area, say
@@ -108,8 +106,8 @@ Create an Area only when the user asks.
 4. Run `dokito register <area-path>`. Initialize Git only for a new standalone
    Area and never create a remote or push. Registration automatically
    records verified sibling checkouts named by Repository ID.
-5. Curate `context.md`, run `dokito validate --json`, then run
-   `dokito context --json` in the Area and every connected Repository.
+5. Curate `context.md`, run `dokito validate`, then run `dokito context` in the
+   Area and every connected Repository.
 6. If a standalone Git repository was initialized, commit the curated Area
    automatically after successful validation. Never commit into an existing
    or parent worktree.
@@ -117,18 +115,18 @@ Create an Area only when the user asks.
 ## Structured changes
 
 Immediately before a structured write, resolve the scope again with
-`dokito context --json` and record the baseline with `dokito validate --json`.
+`dokito context` and record the baseline with `dokito validate`.
 Context from an earlier or interrupted step can be stale.
 Read the target and its typed relation dependencies immediately before editing.
 Use a context-aware patch and preserve unrelated frontmatter, prose, links,
 lists, and checkboxes.
 
-Create a Task ID with `dokito id --json`, then create its Markdown file
-directly. No Dokito model has a CLI CRUD command.
+Create a Task ID with `dokito id`, then create its Markdown file directly. No
+Dokito model has a CLI CRUD command.
 
 After every structured write:
 
-1. Run `dokito validate --json`.
+1. Run `dokito validate`.
 2. Re-read every changed Dokito file.
 3. Inspect the focused diff.
 4. Repair errors introduced by the change before reporting completion.

@@ -20,5 +20,5 @@ creating or changing a typed relation.
 Before removing a Project or Repository relation, inspect every Task that can
 depend on it. Before renaming or deleting a document, search for Markdown and
 wiki links that target it: Dokito never rewrites a link for you, and a rename
-that changes the filename changes the identity every link uses. `dokito validate --json` is the final structural check, not a
-replacement for semantic judgment.
+that changes the filename changes the identity every link uses. The final
+structural check is `dokito validate`, not a replacement for semantic judgment.
