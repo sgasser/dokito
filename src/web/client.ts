@@ -2,6 +2,7 @@
  * Dokito is a server-rendered application. These controllers only enhance
  * markup that already navigates and reads correctly without JavaScript.
  */
+import { enhanceMermaidDiagrams } from "./client/mermaid";
 import { initializeNavigation } from "./client/navigation";
 import { initializePalette } from "./client/palette";
 import { enhanceProjectDetails } from "./client/project-details";
@@ -12,6 +13,7 @@ function enhance(root: ParentNode): void {
   enhanceReaderMenus(root);
   enhanceProjectDetails(root);
   enhanceTaskPeek(root);
+  enhanceMermaidDiagrams(root);
 }
 
 function main(): void {

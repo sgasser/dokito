@@ -9,6 +9,7 @@
     "includes": [
       "**",
       "!src/web/client.generated.js",
+      "!src/web/mermaid.generated.js",
       "!src/web/styles.generated.css",
       "!!dist"
     ],

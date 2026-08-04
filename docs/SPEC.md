@@ -566,3 +566,7 @@ region. Direct requests, reloads, unsupported browsers, Area changes, and
 failed enhancements still use the complete page. Area files are read directly
 on each request and are never mutated by the runtime. Local registration
 writes use atomic replacement.
+
+Fenced `mermaid` code blocks are progressively rendered as SVG diagrams. The
+server-rendered source remains readable when client-side JavaScript is absent,
+the diagram module cannot load, or Mermaid rejects the syntax.

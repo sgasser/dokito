@@ -11,7 +11,7 @@
     "build": "bun run build:web && bun build ./src/cli/index.ts --compile --jsx-runtime=automatic --outfile ./dist/dokito",
     "build:web": "bun run build:js && bun run build:css",
     "build:css": "tailwindcss -i ./src/web/styles.css -o ./src/web/styles.generated.css --minify",
-    "build:js": "bun build ./src/web/client.ts --minify --target=browser --outfile ./src/web/client.generated.js",
+    "build:js": "bun build ./src/web/client.ts --minify --target=browser --outfile ./src/web/client.generated.js && bun build ./src/web/mermaid-entry.ts --minify --target=browser --outfile ./src/web/mermaid.generated.js",
     "check": "bun run build:web && bun run lint && bun run typecheck && bun run deadcode && bun run test",
     "deadcode": "knip",
     "format": "biome format --write .",
@@ -37,6 +37,7 @@
   "dependencies": {
     "hono": "^4.12.32",
     "mdast-util-from-markdown": "^2.0.3",
+    "mermaid": "^11.16.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "^10.1.0",

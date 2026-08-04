@@ -229,6 +229,17 @@ export function MarkdownContent({
       const resolved = src ? resolveImageSrc?.(documentTarget(src)) : undefined;
       return resolved ? <img alt={alt ?? ""} src={resolved} /> : null;
     },
+    code({ children, className }) {
+      const mermaid = className?.split(" ").includes("language-mermaid");
+      return (
+        <code
+          className={className}
+          {...(mermaid ? { "data-mermaid-source": "" } : {})}
+        >
+          {children}
+        </code>
+      );
+    },
   };
 
   return (

@@ -2,6 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
     "src/web/client.ts",
+    "src/web/mermaid-entry.ts",
     "tests/**/*.test.ts",
     "tests/**/*.e2e.ts",
     "tests/browser/server.ts"
