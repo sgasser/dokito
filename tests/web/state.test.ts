@@ -250,6 +250,37 @@ describe("Search across Areas", () => {
     expect(reading.hits.map((hit) => hit.reason)).toContain("title");
   });
 
+  test("keeps internal heading metadata out of Web hits", async () => {
+    workspace = await createTestWorkspace();
+    await registerTestArea({
+      cwd: workspace.root,
+      target: workspace.areaRoot,
+      id: "product",
+      name: "Product",
+      configPath: workspace.configPath,
+    });
+    await writeFile(
+      path.join(workspace.areaRoot, "resources", "operations.md"),
+      "Opening note.\n\n## Rotation marker\n\nNo repeated marker.\n",
+      "utf8",
+    );
+
+    const result = await loadSearchView({
+      configPath: workspace.configPath,
+      area: "product",
+      query: "rotation marker",
+    });
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]).toMatchObject({
+      path: "resources/operations.md",
+      line: 3,
+      snippet: "Rotation marker",
+      reason: "content",
+    });
+    expect(result.hits[0]).not.toHaveProperty("heading");
+  });
+
   test("preserves Web search ranking", async () => {
     const configPath = await twoAreas();
     const roots = [
