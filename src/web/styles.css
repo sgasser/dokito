@@ -394,6 +394,21 @@
     white-space: inherit;
   }
 
+  .prose [data-mermaid-diagram] {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+    background: var(--color-panel);
+    padding: --spacing(4);
+  }
+
+  .prose [data-mermaid-diagram] svg {
+    max-width: 100%;
+    height: auto;
+  }
+
   /* A table is data: the head names the columns, the rules separate rows, and
      nothing else competes with the numbers. */
   .prose table {

@@ -29,6 +29,18 @@ const area = "product";
 export { area };
 ```
 
+## Diagram
+
+```mermaid
+flowchart LR
+  Index["Repository index"]
+  Web["Web client"]
+  Server["API"]
+  Index --> Web
+  Index --> Server
+  Web -->|"HTTP"| Server
+```
+
 ## Link shapes
 
 - [Umlaut](security.md)

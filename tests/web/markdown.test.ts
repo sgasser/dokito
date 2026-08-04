@@ -113,6 +113,15 @@ describe("Rendered Markdown", () => {
     expect(block?.trim().split("\n")).toHaveLength(2);
   });
 
+  test("marks Mermaid blocks for progressive enhancement", async () => {
+    const html = await render();
+
+    expect(html).toContain(
+      '<pre><code class="language-mermaid" data-mermaid-source="">',
+    );
+    expect(html).toContain("Index[&quot;Repository index&quot;]");
+  });
+
   /**
    * `project:` and `task:` read as unknown URL schemes, and react-markdown
    * empties those hrefs before the link component runs. The wiki form never

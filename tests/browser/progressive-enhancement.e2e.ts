@@ -358,6 +358,10 @@ test("resource navigation reveals the current document in a collapsed folder", a
 test("related reader data is part of each complete page", async ({ page }) => {
   await page.goto("/area/product/resources/resources/markdown.md");
   await expect(page.locator("[data-document-title]")).toHaveText("markdown");
+  await expect(page.locator("[data-mermaid-diagram] svg")).toBeVisible();
+  await expect(page.locator("[data-mermaid-diagram]")).toContainText(
+    "Repository index",
+  );
   const related = page.locator("[data-related-rows]");
   await expect(related.getByText("my notes", { exact: true })).toBeVisible();
   await expect(page.locator("[data-derived-skeleton]")).toHaveCount(0);
@@ -375,6 +379,7 @@ test("related reader data is part of each complete page", async ({ page }) => {
     .first()
     .click();
   await expect(page.locator("[data-document-title]")).toHaveText("markdown");
+  await expect(page.locator("[data-mermaid-diagram] svg")).toBeVisible();
   await expect(
     page.locator("[data-related-rows]").getByText("my notes", { exact: true }),
   ).toBeVisible();

@@ -1004,6 +1004,9 @@ describe("Web", () => {
     const page = await request(new Request("http://127.0.0.1/area/product"));
     const html = await page.text();
     const script = await request(new Request("http://127.0.0.1/app.js"));
+    const mermaidScript = await request(
+      new Request("http://127.0.0.1/mermaid.js"),
+    );
     const favicon = await request(new Request("http://127.0.0.1/favicon.svg"));
     const index = await request(
       new Request("http://127.0.0.1/index.json?area=product"),
@@ -1022,6 +1025,10 @@ describe("Web", () => {
 
     expect(script.status).toBe(200);
     expect(script.headers.get("content-type")).toContain("text/javascript");
+    expect(mermaidScript.status).toBe(200);
+    expect(mermaidScript.headers.get("content-type")).toContain(
+      "text/javascript",
+    );
     expect(favicon.status).toBe(200);
     expect(favicon.headers.get("content-type")).toContain("image/svg+xml");
 

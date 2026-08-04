@@ -29,6 +29,7 @@ import {
 } from "./data";
 import { defaultArea, requireArea } from "./data/workspace";
 import { FONT_FILES } from "./fonts";
+import mermaidScript from "./mermaid.generated.js" with { type: "text" };
 import {
   parseFocusQuery,
   parseProjectsQuery,
@@ -44,6 +45,7 @@ const DEFAULT_PORT = 4176;
 const DEFAULT_PORT_ATTEMPTS = 10;
 const HEALTH_PATH = "/health";
 const SCRIPT_PATH = "/app.js";
+const MERMAID_SCRIPT_PATH = "/mermaid.js";
 const FAVICON_PATH = "/favicon.svg";
 const INDEX_PATH = "/index.json";
 const NAVIGATION_HEADER = "x-dokito-navigation";
@@ -456,6 +458,9 @@ function createWebApp(input: Omit<WebServerInput, "port">): Hono<WebEnv> {
   );
 
   app.get(SCRIPT_PATH, () => assetResponse(clientScript, "text/javascript"));
+  app.get(MERMAID_SCRIPT_PATH, () =>
+    assetResponse(mermaidScript, "text/javascript"),
+  );
   app.get(FAVICON_PATH, () =>
     assetResponse(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#18181b"/><path fill="#fafafa" d="M9 8h7.2c4.4 0 7.3 3.2 7.3 8s-2.9 8-7.3 8H9V8Zm4.2 3.6v8.8H16c2 0 3.2-1.7 3.2-4.4S18 11.6 16 11.6h-2.8Z"/></svg>',
